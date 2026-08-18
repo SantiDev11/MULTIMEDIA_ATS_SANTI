@@ -1,0 +1,5 @@
+pefile>=2023.2.7
+capstone>=5.0.0
+PyInstaller>=6.0.0
+pygame>=2.5.0
+Pillow>=10.0.0

@@ -1,0 +1,1741 @@
+STRINGS CATEGORIZADOS
+============================================================
+
+
+=== URLs (17) ===
+  http://
+  https://
+  https://lucidgfx.local/
+  https://lucidgfx.local/chat.html?channel=
+  https://lucidgfx.local/chat.html?demo=1
+  https://lucidgfx.local/chat.html?yt=1
+  https://lucidgfx.local/lucidgfx_home.html
+  https://lucidgfx.local/lucidgfx_home.html?openchat=1
+  https://open.spotify.com
+  https://www.google.com/maps
+  https://www.twitch.tv
+  https://www.youtube.com
+  https://www.youtube.com/@
+  https://www.youtube.com/channel/
+  https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key=
+  if(window._lgfxSetBackground)window._lgfxSetBackground('https://lucidgfx.local/
+  }https://lucidgfx.local/lucidgfx_home.html?pane=1
+
+
+=== Paths (812) ===
+                       / (wCurrent * blendFactor + wHistory * (1.0 - blendFactor) + 0.0001);
+                      float nb = saturate((nd - 2.0) / 4.0);
+                  // Bounds check
+                  neighborStable += step(nd, 0.02); // count stable neighbors
+              // 8-connected diamond pattern
+              // ETS2 uses standard depth (0=near, 1=far): closest = smallest
+              else                        { color = gGps.Sample(gSampler, float2((uv.x - (1.0f - ratio)) / ratio, uv.y)).rgb; }
+              else                        { color = gGps.Sample(gSampler, float2(uv.x, (uv.y - (1.0f - ratio)) / ratio)).rgb; }
+              else               { color = gCef.Sample(gSampler, float2((uv.x - ratio) / (1.0f - ratio), uv.y)).rgb; }
+              else               { color = gCef.Sample(gSampler, float2(uv.x, (uv.y - ratio) / (1.0f - ratio))).rgb; }
+              float autoEV = log2(aeTargetLum / adaptedLum);
+              if (uv.x < (1.0f - ratio)) { color = gCef.Sample(gSampler, float2(uv.x / (1.0f - ratio), uv.y)).rgb; }
+              if (uv.x < ratio) { color = gGps.Sample(gSampler, float2(uv.x / ratio, uv.y)).rgb; }
+              if (uv.y < (1.0f - ratio)) { color = gCef.Sample(gSampler, float2(uv.x, uv.y / (1.0f - ratio))).rgb; }
+              if (uv.y < ratio) { color = gGps.Sample(gSampler, float2(uv.x, uv.y / ratio)).rgb; }
+              merged = sum / count;
+              motion *= maxMotion / motionLen;
+          // 
+          // (Only apply to optical flow contribution to preserve depth repro precision)
+          // (filmic curves expect >1.0 input for highlight compression)
+          // --- Adaptive thresholds per material ---
+          // --- Coarse scale (9px) ---
+          // --- Combine ---
+          // --- Fine scale (3px) ---
+          // --- Signal 1: Center color delta ---
+          // --- Signal 2 + 3: Neighborhood max delta AND spatial variance (single pass) ---
+          // --- Signal 4: Depth discontinuity ---
+          // --- Signal 5: Vegetation detection ---
+          // 2x2 box filter from full res
+          // 3x3 median-like filter: average with neighbors to reduce noise
+          // Adaptive saturation boost in midtones
+          // Adaptive weight per channel
+          // Apply tints
+          // Apply with 2.5x multiplier for meaningful slider range
+          // Aspect-correct radius (assume horizontal-major; for ETS2 always wider than tall)
+          // Base: general purpose
+          // CAS second (sharpens edges)
+          // Clamp to reasonable range (reject outliers from depth discontinuities)
+          // Clamp to valid UV
+          // Clarity first (recovers texture detail)
+          // Combine: coarse gets full weight, fine adds 60% on top
+          // Compute difference between optical flow and depth reprojection
+          // Confidence: if best SAD is still high, the flow is unreliable
+          // Convert back to pixel space
+          // Convert pixel coordinate to NDC [-1,1]
+          // Cool shadows: shift R down, B up (skylight = 6500K+)
+          // Covers effective range of 
+          // Detect pixels where color changed but surrounding area is stable
+          // Diamond search: 4 iterations with decreasing step size
+          // FSR expects motion from current to previous frame
+          // Factor 300 tuned for reversed-Z: kills blur across edges, smooth elsewhere
+          // Final blend: use optical flow where it shows significant independent motion
+          // For values above 0.7, smoothly compress toward 1.0.
+          // Gaussian-like bell: peak at 0.40 luminance, width ~0.25
+          // Good match: SAD < 0.3, poor match: SAD > 1.5
+          // Green dominance normalized by brightness
+          // High-frequency detail: also boost (thin branches, wires, grass blades)
+          // Highlight zone: pixels above ~0.50 luminance receive warm (golden) sunlight
+          // IGN 
+          // If center changed but neighbors are stable 
+          // If flows agree (diff < 2 pixels), trust depth reprojection (it's more precise for static geo)
+          // If they disagree, blend towards optical flow (object is moving independently)
+          // In fallback mode (no VP matrices), output zero motion
+          // Inner radius defined by softness; outside fades darker
+          // Lift to pseudo-HDR range for filmic to work properly
+          // Midtone mask: strongest at 0.5 luma, fades at blacks/whites
+          // Motion vector = previous position - current position (in pixels)
+          // Negative direction
+          // Neighbor processing must match center: exposure 
+          // Noise estimation
+          // Only occlude if sample is closer than current pixel (in front)
+          // Optical flow magnitude: if flow is very small (< 0.5 px), it's likely noise
+          // Output flow in half-res pixel space (will be upscaled to full res)
+          // Perceptual luma
+          // Positive direction
+          // Proportional luminance lift (preserves hue, avoids white shift)
+          // Range check: soft falloff within the world-space radius 
+          // Read current depth (0..1, may be reversed)
+          // Reconstruct world position using inverse VP
+          // Refine: search 
+          // Reproject to previous frame
+          // Ring 1 (distance 1)
+          // Ring 2 (distance 2)
+          // Ring 3 (distance 3)
+          // Rotate kernel sample
+          // SAD per pixel: 9 pixels in 3x3, max diff ~1.0 each 
+          // Sample coarse flow and upscale (
+          // Scale flow by confidence 
+          // Shadow zone: pixels below ~0.30 luminance receive cool (blue) skylight
+          // Smooth blend: original at close range, sharp at distance
+          // Smooth transition: fully depth-repro at diff=0, fully optical at diff>=6 pixels
+          // Soft depth-aware weight: exponential falloff instead of hard threshold
+          // Soft-limit to avoid halos
+          // Spatial detail: 0..1 (how much fine detail surrounds this pixel)
+          // Squeeze: x' = x - amount * mask * (x - 0.85)
+          // This pattern is typical of particles, glass reflections, HUD
+          // This prevents halos at depth discontinuities (truck vs sky)
+          // Use luminance for lift mask to avoid per-channel hue shift
+          // Validate: if depth is at far plane (1.0 or 0.0), motion is unreliable
+          // Vegetation baseline: even "static" vegetation in detailed areas gets
+          // Vegetation: much more sensitive (leaves sway subtly, branches flicker)
+          // Warm highlights: shift R up, G slight up, B down (sunlight = ~5000K)
+          // Weighted local average (total weight = 4*4 + 4*2 + 4*1 = 28)
+          // Yellow-green (autumn leaves): g > b, r close to g
+          // a minimum reactivity to prevent over-accumulation 
+          // to avoid luminance domain mismatch in detail extraction.
+          <requestedExecutionLevel level='asInvoker' uiAccess='false' />
+          [{:.4f} {:.4f} {:.4f} {:.4f}] / [{:.4f} {:.4f} {:.4f} {:.4f}]
+          color *= (1.0 + liftRatio / max(getLuma(color), 0.001));
+          color *= (newLuma / max(curLuma, 0.001));
+          float blendFactor = saturate((diffLen - 2.0) / 4.0);
+          float casEnabled;       // 0 or 1
+          float casSharpness;     // 0=none, 1=max
+          float chromaSat = (maxC > 0.001) ? (maxC - minC) / maxC : 0.0;
+          float clarityEnabled;   // 0 or 1
+          float clarityStrength;  // 0=none, 1=strong
+          float confidence = saturate(1.0 - bestSAD / 1.5);
+          float detail = saturate(sqrt(spatialVar / 8.0) * 8.0);
+          float greenRatio = greenDom / max(luma, 0.01);
+          float highlightMask = smoothstep(0.5, 1.0, l);          // 0 at midtones, strong in bright
+          float limited = detail / (1.0 + abs(detail) * 4.0);
+          float midMask = exp(-((mtLum - 0.40) * (mtLum - 0.40)) / (2.0 * 0.25 * 0.25));
+          float shadowMask    = 1.0 - smoothstep(0.0, 0.5, l);   // strong in dark, 0 at midtones+
+          float stability = neighborStable / max(count, 1.0);
+          float2 coarse = coarseFlow.Load(int3(halfPos, 0)) * 2.0; // Scale to full res
+          float2 prevNDC = prevClip.xy / prevClip.w;
+          float2 uv = (float2(pixelCoord) + 0.5) * renderSize.zw; // [0,1]
+          float3 hitMax = peakC / (4.0 * (1.001 - mn4));
+          float3 hitMin = mn4 / (4.0 * mx4 + 0.001);
+          float3 lifted = c * 2.0;  // simulate 2x exposure headroom
+          float3 result = (b * lobe + d * lobe + f * lobe + h * lobe + e) / (1.0 + 4.0 * lobe);
+          float4 fullSize;    // {w, h, 1/w, 1/h}
+          float4 halfSize;    // {hw, hh, 2/w, 2/h}
+          float4 params;            // {near, far, fallbackMode, 0}
+          float4 params;      // {searchRadius, blockRadius, unused, unused}
+          float4 params;      // {unused, unused, confidenceThreshold, unused}
+          float4 renderSize;        // {w, h, 1/w, 1/h}
+          float4x4 currentInvVP;    // Inverse of current VP
+          float4x4 currentVP;       // Current frame View-Projection
+          float4x4 previousVP;      // Previous frame View-Projection
+          grainMask = max(grainMask, 0.2);  // keep some grain everywhere
+          int2 halfPos = curPos / 2;
+          localAvg /= 28.0;
+          ndc.y = -ndc.y; // Flip Y for D3D convention
+          noise = noise * 2.0 - 1.0;  // remap to -1..+1
+          nz = saturate(abs(nz) / (range + 0.001));
+          power     = lerp(power,     0.4,   vegConf);   // 0.6 
+          scale     *= (1.0 + detail * 0.25); // up to 25% higher scale
+          scale     = lerp(scale,     14.0,  vegConf);   // 8 
+          threshold *= (1.0 - detail * 0.3);  // up to 30% lower threshold
+          threshold = lerp(threshold, 0.005, vegConf);   // 0.015 
+          worldPos /= worldPos.w;
+        </requestedPrivileges>
+      //      Makes the image feel brighter and more energetic without blowing highlights.
+      //      Uses a bell curve centered at 0.4 (perceptual midpoint).
+      //     Acts like a soft shoulder on top of the filmic curve.
+      //     Applied in midtones only (preserves clean blacks and whites).
+      //     Applies an asymmetric remap that lifts shadows without crushing.
+      //     Computed in centered UV space, smooth radial falloff.
+      //     Interleaved gradient noise (Jimenez 2014) animated per-frame.
+      //     Simulates outdoor lighting where shadows receive cool blue skylight
+      //     This is the #1 technique that makes a game feel "alive" vs "gray".
+      //     and highlights receive warm golden sunlight.
+      //    - Coarse scale (~9 px): mid-range "pop", separates planes at distance
+      //    - Fine scale  (~3 px): microdetail in textures, foliage, near surfaces
+      //    8 bilinear taps. Detail clamped to 
+      //    Blends between original and filmic based on filmicStrength
+      //    Blends with linear so user can disable via filmicAmount=0.
+      //    Both affect luminance only (chroma preserved via ratio). Total cost:
+      //    Smooth transition via luma weight, no hard band.
+      //    gain  = highlight tint (applied where luma is bright)
+      //    lift  = shadow tint  (applied where luma is dark)
+      //   - 50% blend fringe:    min_rb=0.516 > 0.25 AND G=0.024 < 0.10 
+      //   - Azul #7eb8ff:        G=0.72 > 0.10 
+      //   - Dark navy (8,12,32): min_rb=0.031 < 0.25 
+      //   - Magenta puro:        min_rb=1.0   > 0.25 AND G=0 < 0.10 
+      //   - Roxo #a855f7:        G=0.33 > 0.10 
+      //   alpha=0.03 
+      //   alpha=0.10 
+      //   alpha=0.30 
+      // --- Legacy logistic boost (backward compat, usually 0) ---
+      // --- Part 1: Dual-mip alpha sampling ---
+      // --- Part 2: Coverage rescaling ---
+      // ---- 3x3 neighborhood statistics in YCoCg ----
+      // ---- Blend factor (matches PS_004 formula exactly) ----
+      // ---- Closest-depth velocity selection + depth-edge detection (3x3) ----
+      // ---- Current color (unjittered center) ----
+      // ---- Final blend with Karis weighting for anti-flicker ----
+      // ---- History sample: Catmull-Rom bicubic (matches PS_004) ----
+      // ---- Luminance-based anti-ghosting ----
+      // ---- Reproject ----
+      // ---- Variance clipping in YCoCg space ----
+      // ---- Velocity from closest-depth pixel (pixel space -> UV space) ----
+      // -----------------------------------------------------------------------
+      // 1. Brightness (pre-curve exposure)
+      // 1. Exposure  (EV stops, optional auto-exposure offset)
+      // 10. Natural Lighting Simulation
+      // 10a. Luminance-based color temperature (warm highlights / cool shadows)
+      // 10b. Midtone boost 
+      // 11. Vignette  (subtle corner darkening 
+      // 12. Film Grain 
+      // 2. ACES Hill filmic curve  (smooth highlight rolloff)
+      // 2. Filmic curve (replaces simple gamma)
+      // 3. Contrast (S-curve centered at 0.5)
+      // 3. Local contrast  (multi-scale luminance unsharp mask)
+      // 3x3 Sobel kernel sampling (luminance-based height)
+      // 3x3 block SAD on luminance
+      // 4-tap box downsample 
+      // 4-tap box downsample (bilinear filter does 2x2 average, offset to centers)
+      // 4. Luminance-aware Lift/Gain  (split-toning)
+      // 4. Shadow lift / Highlight gain (luminance-dependent)
+      // 5. Color temperature (warmth)
+      // 5. S-curve contrast  (around midpoint 0.5)
+      // 5b. Toe lift  (raises pure blacks slightly 
+      // 5c. Highlight squeeze  (compresses bright values 
+      // 6. Saturation
+      // 6. Tint (per-channel multiply)
+      // 7. Saturation
+      // 7. Vibrance 
+      // 8. Gamma
+      // 9. LUT (optional)
+      // AMD RCAS: noise-aware 5-tap cross sharpening
+      // Additional unsharp mask for visible effect
+      // Additive blend with intensity control
+      // Also measures depth discontinuity for edge-aware ghosting reduction.
+      // Asymmetric adaptation speed
+      // At close range (mipFactor=0): gradScale=1.0 (identical to normal sample).
+      // At distance (mipFactor=1): gradScale
+      // At distance, normal maps lose detail from mipmapping.
+      // At mip 0: rescale=1.0 (no change). At mip 3+: rescale=alphaRescale.
+      // BGRA nativo 
+      // Blue channel selects slice
+      // Boost the screen-space micro-normal to compensate.
+      // Brightness (simple multiply)
+      // CAS filter: peak clamped to safe range [-0.125, 0]
+      // Catmull-Rom weights
+      // Center-weighted metering: pixels near center contribute more
+      // Chroma key: descarta magenta puro (#FF00FF) E pixels anti-aliased da borda
+      // Clarity: 13-tap diamond kernel local contrast enhancement (luma-based)
+      // Clip towards center of AABB (Salvi's method)
+      // Collapse to 2x2 bilinear fetches (Sigg & Hadwiger optimization)
+      // Combine CAS + unsharp mask
+      // Compute SAD (Sum of Absolute Differences) for a 5x5 block
+      // Compute texel step from screen-space derivatives of UV
+      // Condi
+      // Contrast (pivot around 0.5)
+      // Cross products with geometric normal 
+      // Debug override
+      // Depth-edge: reduce history at object boundaries where ghosting is most visible
+      // Depth-scaled bias: more bias for close objects (prevents self-occlusion)
+      // Deterministic hash: stable across frames, varies spatially
+      // Edge-adaptive weight (AMD CAS style)
+      // Edge-aware: scale detail by local contrast to avoid noise
+      // Example with rescale=3.0, threshold=0.05:
+      // First frame / out-of-bounds: use current
+      // Fullscreen triangle: vid=0 top-left, vid=1 far-right, vid=2 far-bottom
+      // Hard floor: AO never darkens below 40% 
+      // Linear = near * far / (far + d * (near - far))
+      // Matches PS_004: pick velocity from the nearest (closest to camera) pixel.
+      // Modulate: lerp between full scene and darkened scene
+      // Offset by slice index
+      // Only activate if depth buffer is valid (non-zero center depth)
+      // Per-channel color boost
+      // Plus pattern (cross) 
+      // R = weighted lum sum, G = weight sum 
+      // Random rotation for this pixel
+      // Read current average luminance from smallest mip (1x1 = mip 8 for 256x256)
+      // Recompute Z from unit-sphere constraint
+      // Reduce UV gradients 
+      // Reduce history weight when luminance diverges (ghosting detection)
+      // Reversed-Z: d=1 near, d=0 far
+      // Row 0
+      // Row 1
+      // Row 1+2 (merged via bilinear)
+      // Row 2
+      // Row 3
+      // Row 4: structural density
+      // Sample center + 4 cardinal neighbors
+      // SampleGrad preserves anisotropic filtering direction.
+      // Saturation (luminance-preserving)
+      // Scale XY deviation from center
+      // Scale radius by depth 
+      // Self-shadowing factor (from DXBC: mad + min clamp)
+      // Skip sky (very far pixels)
+      // Skip very close geometry (truck interior, cockpit < 3m)
+      // Soft threshold (quadratic knee)
+      // Stretch alpha distribution around threshold to restore mip-0 coverage.
+      // These surfaces occlude each other heavily and produce black artifacts
+      // This makes the alpha decision MORE binary at distance = more coverage.
+      // This prevents sky/ground extremes from dominating the measurement
+      // Tight AABB: intersection of min/max box and variance box
+      // UV derivatives (V is flipped in the engine: 1-uv.y)
+      // UV within each 32x32 slice
+      // Vegetation confidence from chrominance: 0 = not vegetation, 1 = high confidence
+      // World normal (DXBC convention: B
+      // blendFactor = 1.0 - (1.0 - baseBlend) * confidence
+      // blur = average of neighbors, detail = center - blur
+      // confidence = pow(1.0 - scaledVel, 1.5)
+      // do border-radius (blend entre dark-navy e magenta).
+      // mipFactor: 0 at close range (mip < 0.5), 1 at distance (mip >= 3)
+      // scaledVel = min(velMag * velScale, 0.5)
+      // sharpness 0..1 
+      // sharpness 0..1 maps to peak 0..-0.125
+      // smoothstep(a,b,x) com a>b inverte: 1 dentro, 0 fora, transi
+      </security>
+      Texture2D<float2> depthReproMV   : register(t1);  // Depth-reprojection MVs (pixel space)
+      Texture2D<float2> opticalFlow    : register(t0);  // Our computed flow (pixel space)
+      clip(edge - 0.001f);                                    // descarta tudo fora (n
+      color = pow(max(color, 0.0), 1.0 / max(gamma, 0.1));
+      contribution = max(contribution, 0.0) / max(luma, 0.0001);
+      float  R     = cursorData.z;   // raio externo (8px)
+      float  Ri    = R - borderW;    // raio do interior branco
+      float  borderW = 2.0f;         // espessura da borda escura
+      float  clipScale;     // variance clip aggressiveness (1.0 default)
+      float  feedbackMin;   // history weight (0.88 default)
+      float  filmicAmount;    // 0..1 
+      float  grainAmount;     // 0..0.1 
+      float  grainSeed;       // per-frame seed for grain animation
+      float  highlightSqueeze;// 0..0.5 
+      float  lightTemp;       // 0..1 
+      float  localContrast;   // 0..1.5 
+      float  lumaDiffScale; // luma anti-ghost sensitivity (2.0 default)
+      float  midtoneBoost;    // 0..1 
+      float  shadowColor;     // 0..1 
+      float  shadowLift;      // 0..0.1 
+      float  softThreshold; // knee
+      float  sunWarmth;       // 0..1 
+      float  velScale;      // velocity->blend sensitivity (35 default)
+      float  vignetteAmount;  // 0..1 
+      float  vignetteSoftness;// 0..1 
+      float adaptSpeedDown;   // dark
+      float adaptSpeedUp;     // bright
+      float baseAlpha  = lerp(0.85f, 0.92f, innerMask);  // borda 0.85, interior 0.92
+      float brightness;   // overall multiplier
+      float contrast;     // S-curve around 0.5
+      float currentLum = (lumData.y > 0.001) ? (lumData.x / lumData.y) : lumData.x;
+      float debugRed;     // 1.0 = solid red override
+      float deltaTime;        // frame delta in seconds
+      float edge = smoothstep(R + 0.75f, R - 0.75f, dist);   // m
+      float edgeMask = saturate(lumaContrast * 10.0);  // strong edges 
+      float filmicStrength; // 0 = bypass, 1 = full filmic
+      float finalAlpha = baseAlpha * edge;               // suaviza a borda externa
+      float flipV    = splitParams.w;              // telas cujo mesh 
+      float highlightGain;// multiply highlights  
+      float innerMask = smoothstep(Ri + 0.75f, Ri - 0.75f, dist); // 1=interior, 0=borda
+      float lumaDiff = abs(lumaCenter - lumaHistory) / max(lumaCenter, 0.01);
+      float mipFactor = saturate((estimatedMip - 0.5) / 2.5);
+      float saturation;   // color saturation
+      float scaledBias = bias * (1.0 + 4.0 / max(linearDepth, 1.0));
+      float screenRadius = radius / max(linearDepth, 0.5);
+      float shadowLift;   // add to shadows
+      float vegAlphaHashJitter;   // stochastic threshold noise
+      float vegAlphaMipSharpness; // mip levels sharper for alpha SampleGrad
+      float vegAlphaRescale;      // coverage rescaling strength at distance
+      float vegMipDensity;        // legacy logistic boost (kept for compat)
+      float vegNormalMipBoost;    // extra normal intensity at distance
+      float velMag = length(velocity * resolution);  // magnitude in pixels
+      float warmth;       // color temperature shift
+      float weight = exp(-3.0 * dot(d, d));  // gaussian falloff from center
+      float2 direction;     // (1,0) or (0,1)
+      float2 direction;   // (1,0) or (0,1)
+      float2 offset12 = w2 / w12;
+      float2 seed = floor(screenPos * 0.5); // 2x2 block coherence
+      float2 texPos0  = (texPos1 - 1.0) / texSize;
+      float2 texPos12 = (texPos1 + offset12) / texSize;
+      float2 texPos3  = (texPos1 + 2.0) / texSize;
+      float2 texelSize;     // 1/bloomWidth, 1/bloomHeight
+      float2 texelSize;     // 1/fullWidth, 1/fullHeight
+      float2 texelSize;   // 1/fullWidth, 1/fullHeight
+      float2 uv0 = float2(uvInSlice.x + slice0 / lutSize, uvInSlice.y);
+      float2 uv1 = float2(uvInSlice.x + slice1 / lutSize, uvInSlice.y);
+      float3 amp = min(mn, 1.0 - mx) / max(mx, 0.001);
+      float3 borderColor = float3(0.08f, 0.08f, 0.08f);  // quase-preto (contorno fixo p/ contraste)
+      float3 casResult = (c + wt * (n + s + w + e)) / (1.0 + 4.0 * wt);
+      float3 innerColor  = float3(cursorData.w, rtData.z, rtData.w);  // cor configuravel (default branco)
+      float3 mean = wSum / totalWeight;
+      float3 moment = wSumSq / totalWeight;
+      float3 ts = abs(clipExtent / max(abs(offset), 0.0001));
+      float4 cursorData;   // x=cursorX, y=cursorY, z=outerRadius, w=colorR
+      float4 rtData;       // x=rtWidth, y=rtHeight, z=colorG, w=colorB
+      float4 vegCB9_row0; // sun/light direction
+      float4 vegCB9_row1; // view normal
+      float4 vegCB9_row2; // .xyz=ambient, .w=vegThickness
+      if (flipV > 0.5f) uv.y = 1.0f - uv.y;        // espelha V p/ compensar (igual ao PS texturado flip)
+      nmXY = nmXY * 2.007812 - 1.007812; // exact DXBC unpack constants
+      occlusion = 1.0 - (occlusion / float(samples)) * intensity;
+      return (x*(6.2*x + 0.5)) / (x*(6.2*x + 1.7) + 0.06);
+      return 1.0 / (1.0 + dot(c, float3(0.299, 0.587, 0.114)));
+      return float4(totalAO / max(totalWeight, 0.001), 0, 0, 1);
+      return nearPlane * farPlane / (farPlane + d * (nearPlane - farPlane));
+      return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+      screenRadius = clamp(screenRadius, 0.002, 0.06); // max 6% of screen
+      soft = (knee > 0.0001) ? (soft * soft) / (4.0 * knee) : 0.0;
+      uvInSlice.x = (c.r * (lutSize - 1.0) + 0.5) / (lutSize * lutSize); // 0..1 across 1024
+      uvInSlice.y = (c.g * (lutSize - 1.0) + 0.5) / lutSize;              // 0..1 across 32
+      velocity *= texelSize;  // pixel -> UV
+      weight = lerp(0.3, 1.0, weight);       // floor at 0.3 so edges still count
+    </trustInfo>
+    [{:.4f} {:.4f} {:.4f} {:.4f}] / [{:.4f} {:.4f} {:.4f} {:.4f}]
+    proj: [{:.4f} {:.4f} {:.4f} {:.4f}] / [{:.4f} {:.4f} {:.4f} {:.4f}]
+   !"#$%&'()*+,-./0123
+   !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`ABCDEFGHIJKLMNOPQRSTUVWXYZ{|}~
+   !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
+   !"#$%&'()*+,-./0123456789:;<=>?@abcdefghijklmnopqrstuvwxyz[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
+   !"#$%&'()*+,-./012345678vv9:;<=>?@ABCDvEFGHIJKLMNOPQRSTUVWXYZ[\]^_vvvvvvvv`avvvvvvvvvvvvvvbcdefghivvvvvvvvvvvvvvvvvvjklmnopvvvvvvvvvvvvvvvvvvvvvvvvvvqrstvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvu
+   DevTools/menu NAO desativados
+   DevTools/menu de contexto NAO desativados
+   F8/cursor/interact NAO instalados
+   Fase 2: split/chat/cursor/GPS portados; video/imagem/camera pendentes
+   acoes lucidgfx://action/ NAO vao funcionar
+   cena/painel agora vis
+   chat pode repetir/parar
+   confira o @ exato (sem acento/maiuscula errada)
+   gives "mood" / cinematic feel)
+   handlers/nav NAO instalados; WebView inutilizavel
+   likely transparency/particle
+   loading d3d12.dll...
+   multi-device fix ativo, Fase 2: split/chat/cursor/GPS)
+   navbar/GPS podem travar
+   perfil de usuario do WebView2 bloqueado/em uso ou runtime Edge corrompido?
+   pronto p/ ativar outra chave
+   runtime Edge WebView2 corrompido/desatualizado ou perfil de usuario bloqueado?
+   runtime Edge WebView2 corrompido/incompleto?
+   warm highlights / cool shadows (natural outdoor lighting)
+   {} hits/frame | PS 0x{:08X}
+   {} hits/frame | RT 0x{:016X}
+   {}/{} textures
+  " /grant *S-1-15-2-1:(OI)(CI)(RX) *S-1-15-2-2:(OI)(CI)(RX) /T /C /Q
+  "^wK"(/
+  $\DT6H/
+  %.0fs / %.0fs
+  %d/%d/%d/%llu/%d
+  %s%s\EBWebView\WebView2Loader.dll
+  %s%s\WebView2Loader.dll
+  %s/%08X
+  %s/%s_%08X
+  %s\d3d12.dll
+  &W2C[Ck\/
+  &^aL/%.A{
+  ';var el=document.activeElement;if(!el)return;if(el.isContentEditable){document.execCommand('insertText',false,t);return;}if(el.tagName==='INPUT'||el.tagName==='TEXTAREA'){var s=el.selectionStart,e=el.selectionEnd;if(s==null){el.value+=t;}else{el.value=el.value.slice(0,s)+t+el.value.slice(e);el.selectionStart=el.selectionEnd=s+t.length;}el.dispatchEvent(new Event('input',{bubbles:true}));}})();
+  (3th/'2
+  (D2P?-/
+  (^aW: /\+
+  (function(){if(window.__lgfx_ytconn)return;window.__lgfx_ytconn=true;if(!/(^|\.)youtube\.com$|(^|\.)youtu\.be$|youtube-nocookie\.com$/i.test(location.hostname))return;try{Object.defineProperty(navigator,'connection',{get:function(){return {effectiveType:'3g',downlink:2.5,rtt:150,saveData:false};},configurable:true});}catch(e){}})();
+  (function(){var dpr=window.devicePixelRatio||1;var BAR_H=Math.max(22,Math.ceil(30/dpr));function _lgfxShowLoad(){if(document.getElementById('_lgfx_load'))return;var sz=Math.max(36,Math.ceil(64/dpr));var st=document.createElement('style');st.textContent='@keyframes _lgfxspin{to{transform:rotate(360deg)}}';document.documentElement.appendChild(st);var o=document.createElement('div');o.id='_lgfx_load';o.style.cssText='position:fixed!important;inset:0!important;z-index:2147483647!important;display:flex!important;align-items:center!important;justify-content:center!important;background:rgba(8,10,24,0.92)!important;pointer-events:all!important;';var sp=document.createElement('div');sp.style.cssText='width:'+sz+'px;height:'+sz+'px;border:'+Math.max(3,Math.ceil(sz/10))+'px solid rgba(155,95,255,0.25);border-top-color:#9B5FFF;border-radius:50%;animation:_lgfxspin 0.7s linear infinite;';o.appendChild(sp);document.documentElement.appendChild(o);setTimeout(function(){var el=document.getElementById('_lgfx_load');if(el)el.remove();},6000);}function onPointer(e){if(!window.__lgfxNavOn)return;var cy=(e.clientY!==undefined)?e.clientY:(e.touches&&e.touches[0])?e.touches[0].clientY:-1;if(cy<0||cy<window.innerHeight-BAR_H)return;e.stopImmediatePropagation();e.preventDefault();var x=(e.clientX!==undefined)?e.clientX:(e.touches&&e.touches[0])?e.touches[0].clientX:0;_lgfxShowLoad();if(x<window.innerWidth/2){history.back();}else{window.location.href='lucidgfx://action/resethome';}}document.addEventListener('click',onPointer,true);document.addEventListener('touchstart',onPointer,{capture:true,passive:false});window.__lgfxNavApply=function(){var fr=document.getElementById('_lgfx_nav');if(fr)fr.style.display=window.__lgfxNavOn?'block':'none';};function inject(){if(document.getElementById('_lgfx_nav'))return;var fr=document.createElement('iframe');fr.id='_lgfx_nav';fr.setAttribute('sandbox','allow-scripts');fr.style.cssText='position:fixed!important;bottom:0!important;left:0!important;width:100%!important;height:'+BAR_H+'px!important;border:none!important;z-index:2147483647!important;pointer-events:none!important;';var fs=Math.max(12,Math.ceil(17/dpr));var html='<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{display:flex;height:'+BAR_H+'px;background:rgba(8,10,24,0.95);border-top:1px solid rgba(255,255,255,0.12);font-family:sans-serif}div{flex:1;height:100%;display:flex;align-items:center;justify-content:center;color:white;font-size:'+fs+'px}.cl{background:rgba(150,15,15,0.6)}</style></head><body><div>
+  (function(cc){try{var e=document.activeElement;if(!e)return;var t=e.tagName;if(t==='INPUT'||t==='TEXTAREA'){var s=e.selectionStart,n=e.selectionEnd,v=e.value;if(s==null){s=n=v.length;}var pr=(t==='TEXTAREA')?window.HTMLTextAreaElement.prototype:window.HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(pr,'value').set.call(e,v.slice(0,s)+cc+v.slice(n));var p=s+cc.length;try{e.setSelectionRange(p,p);}catch(_){}e.dispatchEvent(new InputEvent('input',{bubbles:true,data:cc,inputType:'insertText'}));}else if(e.isContentEditable){document.execCommand('insertText',false,cc);}}catch(x){}})(String.fromCharCode(
+  (function(op){try{var e=document.activeElement;if(!e)return;var t=e.tagName;if(t==='INPUT'||t==='TEXTAREA'){var s=e.selectionStart,n=e.selectionEnd,v=e.value;if(s==null)return;if(s!==n){v=v.slice(0,s)+v.slice(n);}else if(op==='back'&&s>0){v=v.slice(0,s-1)+v.slice(n);s=s-1;}else if(op==='fwd'&&s<v.length){v=v.slice(0,s)+v.slice(n+1);}else{return;}var pr=(t==='TEXTAREA')?window.HTMLTextAreaElement.prototype:window.HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(pr,'value').set.call(e,v);try{e.setSelectionRange(s,s);}catch(_){}e.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:op==='back'?'deleteContentBackward':'deleteContentForward'}));}else if(e.isContentEditable){document.execCommand(op==='back'?'delete':'forwardDelete',false);}}catch(x){}})('
+  - Nw"m/
+  .ZKT6H/
+  //    (same pattern each frame) ensures temporal stability.
+  //    Color stays at normal mip (no shimmer). Alpha uses SampleGrad with
+  //    Cost: 1 extra texture fetch (the only extra fetch in this shader).
+  //    Like the Source Engine / UE approach to alpha coverage preservation.
+  //    clearly pass or fail, restoring the bimodal distribution of mip 0.
+  //    proportional to mip level. This pushes near-threshold values to
+  //    reduced UV gradients 
+  //    uniform density bands at LOD transitions. Deterministic noise
+  // - SampleBias makes color AND alpha sharper 
+  // - This approach decouples alpha resolution from color resolution
+  // - alpha += k*a*(1-a) is a logistic boost peaking at 0.5 
+  // - pow(alpha) shifts the ENTIRE curve uniformly 
+  // --- Cotangent-frame TBN for normal-mapped road shaders ---
+  // --- Utility functions ---
+  // ---- Catmull-Rom bicubic filter (4x4 taps, 9 bilinear samples) ----
+  // ---- Color space conversion: RGB <-> YCoCg ----
+  // ---- Karis anti-flicker weight ----
+  // ----------------------------------------------------------------------------
+  // 1) DUAL-MIP SAMPLING: Sample alpha from a SHARPER mip level than color.
+  // 2) COVERAGE RESCALING: Stretch alpha distribution around the threshold
+  // 3) STOCHASTIC THRESHOLD: Spatially-varying test threshold prevents
+  // 9-tap gaussian weights (sigma ~2.5, normalized)
+  // ============================================================================
+  // ACES Hill filmic tonemap (Krzysztof Narkowicz fit 
+  // Adaptive Saturation 
+  // Adds deterministic spatial noise to the discard threshold.
+  // Adjust saturation around the luminance
+  // Apply 3D LUT stored as 1024x32 strip (32 slices of 32x32)
+  // At mip 0, foliage alpha is bimodal (0 or 1 with sharp edges).
+  // At mip 3+, alpha clusters around 0.3-0.5 
+  // CB11: injected by mod 
+  // Contrast around midpoint 0.5
+  // Convention: worldNormal = B*nm.x + T*nm.y + geoN*nm.z (matches ETS2 DXBC)
+  // Dual-Mip Alpha Coverage
+  // Edge Factor (multiplicative, capped)
+  // Enhanced: scales with distance to compensate for normal map blur.
+  // FREE: uses ddx/ddy of already-sampled luminance.
+  // Hash-based noise (per-pixel pseudo-random rotation)
+  // Linearize reversed-Z depth (near=1, far=0)
+  // Matches PS_004's history sampling for sharp sub-pixel reprojection
+  // Micro-Detail Normal from Screen Derivatives
+  // Mip Level Estimation
+  // Operates in linear space.
+  // Prevents uniform density bands at LOD boundaries.
+  // Problem: mipmaps average alpha values, narrowing the distribution.
+  // Produces sub-texel normal variation that improves light response.
+  // Reconstructed from ETS2 DXBC: builds tangent/bitangent from
+  // SSS Factor (energy-conserving, AO-modulated)
+  // Sample kernel 
+  // Simple filmic curve (Unreal-like) 
+  // Smooths highlights (no harsh clipping) and lifts shadows slightly.
+  // Sobel-based normal generation from height (luminance of texture)
+  // Solution (3 parts):
+  // Stochastic alpha test threshold
+  // Subtracting the Laplacian BRIGHTENS bright peaks AND DARKENS dark valleys.
+  // THE CORE STRUCTURAL FIX for sparse distant vegetation.
+  // The noise is per-2x2 pixel block for temporal stability.
+  // This PRESERVES shadow depth, unlike one-sided multiplicative brightening.
+  // Unpack normal map, transform to world space via cotangent frame,
+  // Unsharp Mask 
+  // Uses UV derivatives to approximate which mip the GPU would pick.
+  // Uses ddx/ddy for correct texel step at any resolution/mip level.
+  // Uses second screen-space derivatives (approximated Laplacian).
+  // Why this is NOT a parametric tweak:
+  // at mip 0 now FAIL the threshold test. Result: sparse trees at distance.
+  // compute nmFactor for albedo self-shadowing.
+  // cross(geometricNormal, screenSpacePositionDerivatives) + UV gradients.
+  // geoN = TEXCOORD1 (geometric normal), worldP = TEXCOORD2 (position data)
+  // normalDetailScale controls the kernel spread (1.0=one texel, 2.0=two texels, etc.)
+  /2GG>!B
+  />58d%
+  /D$Dv1
+  /L$<.\*b
+  /_![GJ
+  /split
+  2vik\/
+  3D scene streak: %u / 30
+  4YQ_3H/
+  6CW@/.f
+  6^:L/9.
+  7])#######hV0qs'/###[),##/l:$#Q6>##5[n42>c-TH`->>#/e>11NNV=Bv(*:.F?uu#(gRU.o0XGH`$vhLG1hxt9?W`#,5LsCp#-i>.r$<$6pD>Lb';9Crc6tgXmKVeU2cD4Eo3R/2*>]b(MC;$jPfY.;h^`IWM9<Lh2TlS+f-s$o6Q<BWH`YiU.xfLq$N;$0iR/GX:U(jcW2p/W*q?-qmnUCI;jHSAiFWM.R*kU@C=GH?a9wp8f$e.-4^Qg1)Q-GL(lf(r/7GrRgwV%MS=C#`8ND>Qo#t'X#(v#Y9w0#1D$CIf;W'#pWUPXOuxXuU(H9M(1<q-UE31#^-V'8IRUo7Qf./L>=Ke$$'5F%)]0^#0X@U.a<r:QLtFsLcL6##lOj)#.Y5<-R&KgLwqJfLgN&;Q?gI^#DY2uLi@^rMl9t=cWq6##weg>$FBjVQTSDgEKnIS7EM9>ZY9w0#L;>>#Mx&4Mvt//L[MkA#W@lK.N'[0#7RL_&#w+F%HtG9M#XL`N&.,GM4Pg;-<nLENhvx>-VsM.M0rJfLH2eTM`*oJMHRC`NkfimM2J,W-jXS:)r0wK#@Fge$U>`w'N7G#$#fB#$E^$#:9:hk+eOe--6x)F7*E%?76%^GMHePW-Z5l'&GiF#$956:rS?dA#fiK:)Yr+`&#0j@'DbG&#^$PG.Ll+DNa<XCMKEV*N)LN/N*b=%Q6pia-Xg8I$<MR&,VdJe$<(7G;Ckl'&hF;;$<_=X(b.RS%%)###MPBuuE1V:v&cX&#2m#(&cV]`k9OhLMbn%s$G2,B$BfD3X*sp5#l,$R#]x_X1xKX%b5U*[r5iMfUo9U`N99hG)tm+/Us9pG)XPu`<0s-)WTt(gCRxIg(%6sfh=ktMKn3j)<6<b5Sk_/0(^]AaN#(p/L>&VZ>1i%h1S9u5o@YaaW$e+b<TWFn/Z:Oh(Cx2$lNEoN^e)#CFY@@I;BOQ*sRwZtZxRcU7uW6CXow0i(?$Q[cjOd[P4d)]>ROPOpxTO7Stwi1::iB1q)C_=dV26J;2,]7op$]uQr@_V7$q^%lQwtuHY]=DX,n3L#0PHDO4f9>dC@O>HBuKPpP*E,N+b3L#lpR/MrTEH.IAQk.a>D[.e;mc.x]Ip.PH^'/aqUO/$1WxLoW0[iLA<QT;5HKD+@qQ'NQ(3_PLhE48R.qAPSwQ0/WK?Z,[x?-J;jQTWA0X@KJ(_Y8N-:/M74:/-ZpKrUss?d#dZq]DAbkU*JqkL+nwX@@47`5>w=4h(9.`GCRUxHPeR`5Mjol(dUWxZa(>STrPkrJiWx`5U7F#.g*jrohGg`cg:lSTvEY/EV_7H4Q9[Z%cnv;JQYZ5q.l7Zeas:HOIZOB?G<Nald$qs]@]L<J7bR*>gv:[7MI2k).'2($5FNP&EQ(,)U]W]+fh18.vsai00);D3@4ku5P?DP8aJt+;qUM]=+b'8@;mViBKx0DE[-auGl8:PJ&Dj+M6OC]O^((##]`0i)drT;-7X`=-H3[igUnPG-NZlo.#k@h#=Ork$m>a>$-?Tm$UV(?#P6YY#'/###xe7q.73rI3*pP/$1>s9)W,JrM7SN]'/4C#v$U`0#V.[0>xQsH$fEmPMgY2u7Kh(G%siIfLSoS+MK2eTM$=5,M8p`A.;_R%#u[K#$x4AG8.kK/HSB==-'Ie/QTtG?-.*^N-4B/ZM_3YlQC7(p7q)&](`6_c)$/*JL(L-^(]$wIM`dPtOdGA,U3:w2M-0<q-]L_?^)1vw'.,MRsqVr.L;aN&#/EgJ)PBc[-f>+WomX2u7lqM2iEumMTcsF?-aT=Z-97UEnXglEn1K-bnEO`guFt(c%=;Am_Qs@jLooI&NX;]0#j4#F14;gl8-GQpgwhrq8'=l_f-b49'UOqkLu7-##oDY2L(te+Mch&gLYtJ,MEtJfLh'x'M=$CS-ZZ%P]8bZ>#S?YY#%Q&q'3^Fw&?D)UDNrocM3A76//oL?#h7gl85[qW/NDOk%16ij;+:1a'iNIdb-ou8.P*w,v5#EI$TWS>Pot-R*H'-SEpA:g)f+O$%%`kA#G=8RMmG1&O`>to8bC]T&$,n.LoO>29sp3dt-52U%VM#q7'DHpg+#Z9%H[K<L%a2E-grWVM3@2=-k22tL]4$##6We'8UJCKE[d_=%wI;'6X-GsLX4j^SgJ$##R*w,vP3wK#iiW&#*h^D&R?jp7+/u&#(AP##XU8c$fSYW-J95_-Dp[g9wcO&#M-h1OcJlc-*vpw0xUX&#OQFKNX@QI'IoPp7nb,QU//MQ&ZDkKP)X<WSVL(68uVl&#c'[0#(s1X&xm$Y%B7*K:eDA323j998GXbA#pwMs-jgD$9QISB-A_(aN4xoFM^@C58D0+Q+q3n0#3U1InDjF682-SjMXJK)(h$hxua_K]ul92%'BOU&#BRRh-slg8KDlr:%L71Ka:.A;%YULjDPmL<LYs8i#XwJOYaKPKc1h:'9Ke,g)b),78=I39B;xiY$bgGw-&.Zi9InXDuYa%G*f2Bq7mn9^#p1vv%#(Wi-;/Z5ho;#2:;%d&#x9v68C5g?ntX0X)pT`;%pB3q7mgGN)3%(P8nTd5L7GeA-GL@+%J3u2:(Yf>et`e;)f#Km8&+DC$I46>#Kr]]u-[=99tts1.qb#q72g1WJO81q+eN'03'eM>&1XxY-caEnOj%2n8)),?ILR5^.Ibn<-X-Mq7[a82Lq:F&#ce+S9wsCK*x`569E8ew'He]h:sI[2LM$[guka3ZRd6:t%IG:;$%YiJ:Nq=?eAw;/:nnDq0(CYcMpG)qLN4$##&J<j$UpK<Q4a1]MupW^-sj_$%[HK%'F####QRZJ::Y3EGl4'@%FkiAOg#p[##O`gukTfBHagL<LHw%q&OV0##F=6/:chIm0@eCP8X]:kFI%hl8hgO@RcBhS-@Qb$%+m=hPDLg*%K8ln(wcf3/'DW-$.lR?n[nCH-eXOONTJlh:.RYF%3'p6sq:UIMA945&^HFS87@$EP2iG<-lCO$%c`uKGD3rC$x0BL8aFn--`ke%#HMP'vh1/R&O_J9'um,.<tx[@%wsJk&bUT2`0uMv7gg#qp/ij.L56'hl;.s5CUrxjOM7-##.l+Au'A&O:-T72L]P`&=;ctp'XScX*rU.>-XTt,%OVU4)S1+R-#dg0/Nn?Ku1^0f$B*P:Rowwm-`0PKjYDDM'3]d39VZHEl4,.j']Pk-M.h^&:0FACm$maq-&sgw0t7/6(^xtk%LuH88Fj-ekm>GA#_>568x6(OFRl-IZp`&b,_P'$M<Jnq79VsJW/mWS*PUiq76;]/NM_>hLbxfc$mj`,O;&%W2m`Zh:/)Uetw:aJ%]K9h:TcF]u_-Sj9,VK3M.*'&0D[Ca]J9gp8,kAW]%(?A%R$f<->Zts'^kn=-^@c4%-pY6qI%J%1IGxfLU9CP8cbPlXv);C=b),<2mOvP8up,UVf3839acAWAW-W?#ao/^#%KYo8fRULNd2.>%m]UK:n%r$'sw]J;5pAoO_#2mO3n,'=H5(etHg*`+RLgv>=4U8guD$I%D:W>-r5V*%j*W:Kvej.Lp$<M-SGZ':+Q_k+uvOSLiEo(<aD/K<CCc`'Lx>'?;++O'>()jLR-^u68PHm8ZFWe+ej8h:9r6L*0//c&iH&R8pRbA#Kjm%upV1g:a_#Ur7FuA#(tRh#.Y5K+@?3<-8m0$PEn;J:rh6?I6uG<-`wMU'ircp0LaE_OtlMb&1#6T.#FDKu#1Lw%u%+GM+X'e?YLfjM[VO0MbuFp7;>Q&#WIo)0@F%q7c#4XAXN-U&VB<HFF*qL($/V,;(kXZejWO`<[5??ewY(*9=%wDc;,u<'9t3W-(H1th3+G]ucQ]kLs7df($/*JL]@*t7Bu_G3_7mp7<iaQjO@.kLg;x3B0lqp7Hf,^Ze7-##@/c58Mo(3;knp0%)A7?-W+eI'o8)b<nKnw'Ho8C=Y>pqB>0ie&jhZ[?iLR@@_AvA-iQC(=ksRZRVp7`.=+NpBC%rh&3]R:8XDmE5^V8O(x<<aG/1N$#FX$0V5Y6x'aErI3I$7x%E`v<-BY,)%-?Psf*l?%C3.mM(=/M0:JxG'?7WhH%o'a<-80g0NBxoO(GH<dM]n.+%q@jH?f.UsJ2Ggs&4<-e47&Kl+f//9@`b+?.TeN_&B8Ss?v;^Trk;f#YvJkl&w$]>-+k?'(<S:68tq*WoDfZu';mM?8X[ma8W%*`-=;D.(nc7/;)g:T1=^J$&BRV(-lTmNB6xqB[@0*o.erM*<SWF]u2=st-*(6v>^](H.aREZSi,#1:[IXaZFOm<-ui#qUq2$##Ri;u75OK#(RtaW-K-F`S+cF]uN`-KMQ%rP/Xri.LRcB##=YL3BgM/3MD?@f&1'BW-)Ju<L25gl8uhVm1hL$##*8###'A3/LkKW+(^rWX?5W_8g)a(m&K8P>#bmmWCMkk&#TR`C,5d>g)F;t,4:@_l8G/5h4vUd%&%950:VXD'QdWoY-F$BtUwmfe$YqL'8(PWX(P?^@Po3$##`MSs?DWBZ/S>+4%>fX,VWv/w'KD`LP5IbH;rTV>n3cEK8U#bX]l-/V+^lj3;vlMb&[5YQ8#pekX9JP3XUC72L,,?+Ni&co7ApnO*5NK,((W-i:$,kp'UDAO(G0Sq7MVjJsbIu)'Z,*[>br5fX^:FPAWr-m2KgL<LUN098kTF&#lvo58=/vjDo;.;)Ka*hLR#/k=rKbxuV`>Q_nN6'8uTG&#1T5g)uLv:873UpTLgH+#FgpH'_o1780Ph8KmxQJ8#H72L4@768@Tm&Qh4CB/5OvmA&,Q&QbUoi$a_%3M01H)4x7I^&KQVgtFnV+;[Pc>[m4k//,]1?#`VY[Jr*3&&slRfLiVZJ:]?=K3Sw=[$=uRB?3xk48@aeg<Z'<$#4H)6,>e0jT6'N#(q%.O=?2S]u*(m<-V8J'(1)G][68hW$5'q[GC&5j`TE?m'esFGNRM)j,ffZ?-qx8;->g4t*:CIP/[Qap7/9'#(1sao7w-.qNUdkJ)tCF&#B^;xGvn2r9FEPFFFcL@.iFNkTve$m%#QvQS8U@)2Z+3K:AKM5isZ88+dKQ)W6>J%CL<KE>`.d*(B`-n8D9oK<Up]c$X$(,)M8Zt7/[rdkqTgl-0cuGMv'?>-XV1q['-5k'cAZ69e;D_?$ZPP&s^+7])$*$#@QYi9,5P&#9r+$%CE=68>K8r0=dSC%%(@p7.m7jilQ02'0-VWAg<a/''3u.=4L$Y)6k/K:_[3=&jvL<L0C/2'v:^;-DIBW,B4E68:kZ;%?8(Q8BH=kO65BW?xSG&#@uU,DS*,?.+(o(#1vCS8#CHF>TlGW'b)Tq7VT9q^*^$$.:&N@@$&)WHtPm*5_rO0&e%K&#-30j(E4#'Zb.o/(Tpm$>K'f@[PvFl,hfINTNU6u'0pao7%XUp9]5.>%h`8_=VYbxuel.NTSsJfLacFu3B'lQSu/m6-Oqem8T+oE--$0a/k]uj9EwsG>%veR*hv^BFpQj:K'#SJ,sB-'#](j.Lg92rTw-*n%@/;39rrJF,l#qV%OrtBeC6/,;qB3ebNW[?,Hqj2L.1NP&GjUR=1D8QaS3Up&@*9wP?+lo7b?@%'k4`p0Z$22%K3+iCZj?XJN4Nm&+YF]u@-W$U%VEQ/,,>>#)D<h#`)h0:<Q6909ua+&VU%n2:cG3FJ-%@Bj-DgLr`Hw&HAKjKjseK</xKT*)B,N9X3]krc12t'pgTV(Lv-tL[xg_%=M_q7a^x?7Ubd>#%8cY#YZ?=,`Wdxu/ae&#w6)R89tI#6@s'(6Bf7a&?S=^ZI_kS&ai`&=tE72L_D,;^R)7[$s<Eh#c&)q.MXI%#v9ROa5FZO%sF7q7Nwb&#ptUJ:aqJe$Sl68%.D###EC><?-aF&#RNQv>o8lKN%5/$(vdfq7+ebA#u1p]ovUKW&Y%q]'>$1@-[xfn$7ZTp7mM,G,Ko7a&Gu%G[RMxJs[0MM%wci.LFDK)(<c`Q8N)jEIF*+?P2a8g%)$q]o2aH8C&<SibC/q,(e:v;-b#6[$NtDZ84Je2KNvB#$P5?tQ3nt(0d=j.LQf./Ll33+(;q3L-w=8dX$#WF&uIJ@-bfI>%:_i2B5CsR8&9Z&#=mPEnm0f`<&c)QL5uJ#%u%lJj+D-r;BoF&#4DoS97h5g)E#o:&S4weDF,9^Hoe`h*L+_a*NrLW-1pG_&2UdB86e%B/:=>)N4xeW.*wft-;$'58-ESqr<b?UI(_%@[P46>#U`'6AQ]m&6/`Z>#S?YY#Vc;r7U2&326d=w&H####?TZ`*4?&.MK?LP8Vxg>$[QXc%QJv92.(Db*B)gb*BM9dM*hJMAo*c&#b0v=Pjer]$gG&JXDf->'StvU7505l9$AFvgYRI^&<^b68?j#q9QX4SM'RO#&sL1IM.rJfLUAj221]d##DW=m83u5;'bYx,*Sl0hL(W;;$doB&O/TQ:(Z^xBdLjL<Lni;''X.`$#8+1GD:k$YUWsbn8ogh6rxZ2Z9]%nd+>V#*8U_72Lh+2Q8Cj0i:6hp&$C/:p(HK>T8Y[gHQ4`4)'$Ab(Nof%V'8hL&#<NEdtg(n'=S1A(Q1/I&4([%dM`,Iu'1:_hL>SfD07&6D<fp8dHM7/g+tlPN9J*rKaPct&?'uBCem^jn%9_K)<,C5K3s=5g&GmJb*[SYq7K;TRLGCsM-$$;S%:Y@r7AK0pprpL<Lrh,q7e/%KWK:50I^+m'vi`3?%Zp+<-d+$L-Sv:@.o19n$s0&39;kn;S%BSq*$3WoJSCLweV[aZ'MQIjO<7;X-X;&+dMLvu#^UsGEC9WEc[X(wI7#2.(F0jV*eZf<-Qv3J-c+J5AlrB#$p(H68LvEA'q3n0#m,[`*8Ft)FcYgEud]CWfm68,(aLA$@EFTgLXoBq/UPlp7:d[/;r_ix=:TF`S5H-b<LI&HY(K=h#)]Lk$K14lVfm:x$H<3^Ql<M`$OhapBnkup'D#L$Pb_`N*g]2e;X/Dtg,bsj&K#2[-:iYr'_wgH)NUIR8a1n#S?Yej'h8^58UbZd+^FKD*T@;6A7aQC[K8d-(v6GI$x:T<&'Gp5Uf>@M.*J:;$-rv29'M]8qMv-tLp,'886iaC=Hb*YJoKJ,(j%K=H`K.v9HggqBIiZu'QvBT.#=)0ukruV&.)3=(^1`o*Pj4<-<aN((^7('#Z0wK#5GX@7u][`*S^43933A4rl][`*O4CgLEl]v$1Q3AeF37dbXk,.)vj#x'd`;qgbQR%FW,2(?LO=s%Sc68%NP'##Aotl8x=BE#j1UD([3$M(]UI2LX3RpKN@;/#f'f/&_mt&F)XdF<9t4)Qa.*kTLwQ'(TTB9.xH'>#MJ+gLq9-##@HuZPN0]u:h7.T..G:;$/Usj(T7`Q8tT72LnYl<-qx8;-HV7Q-&Xdx%1a,hC=0u+HlsV>nuIQL-5<N?)NBS)QN*_I,?&)2'IM%L3I)X((e/dl2&8'<M:^#M*Q+[T.Xri.LYS3v%fF`68h;b-X[/En'CR.q7E)p'/kle2HM,u;^%OKC-N+Ll%F9CF<Nf'^#t2L,;27W:0O@6##U6W7:$rJfLWHj$#)woqBefIZ.PK<b*t7ed;p*_m;4ExK#h@&]>_>@kXQtMacfD.m-VAb8;IReM3$wf0''hra*so568'Ip&vRs849'MRYSp%:t:h5qSgwpEr$B>Q,;s(C#$)`svQuF$##-D,##,g68@2[T;.XSdN9Qe)rpt._K-#5wF)sP'##p#C0c%-Gb%hd+<-j'Ai*x&&HMkT]C'OSl##5RG[JXaHN;d'uA#x._U;.`PU@(Z3dt4r152@:v,'R.Sj'w#0<-;kPI)FfJ&#AYJ&#//)>-k=m=*XnK$>=)72L]0I%>.G690a:$##<,);?;72#?x9+d;^V'9;jY@;)br#q^YQpx:X#Te$Z^'=-=bGhLf:D6&bNwZ9-ZD#n^9HhLMr5G;']d&6'wYmTFmL<LD)F^%[tC'8;+9E#C$g%#5Y>q9wI>P(9mI[>kC-ekLC/R&CH+s'B;K-M6$EB%is00:+A4[7xks.LrNk0&E)wILYF@2L'0Nb$+pv<(2.768/FrY&h$^3i&@+G%JT'<-,v`3;_)I9M^AE]CN?Cl2AZg+%4iTpT3<n-&%H%b<FDj2M<hH=&Eh<2Len$b*aTX=-8QxN)k11IM1c^j%9s<L<NFSo)B?+<-(GxsF,^-Eh@$4dXhN$+#rxK8'je'D7k`e;)2pYwPA'_p9&@^18ml1^[@g4t*[JOa*[=Qp7(qJ_oOL^('7fB&Hq-:sf,sNj8xq^>$U4O]GKx'm9)b@p7YsvK3w^YR-CdQ*:Ir<($u&)#(&?L9Rg3H)4fiEp^iI9O8KnTj,]H?D*r7'M;PwZ9K0E^k&-cpI;.p/6_vwoFMV<->#%Xi.LxVnrU(4&8/P+:hLSKj$#U%]49t'I:rgMi'FL@a:0Y-uA[39',(vbma*hU%<-SRF`Tt:542R_VV$p@[p8DV[A,?1839FWdF<TddF<9Ah-6&9tWoDlh]&1SpGMq>Ti1O*H&#(AL8[_P%.M>v^-))qOT*F5Cq0`Ye%+$B6i:7@0IX<N+T+0MlMBPQ*Vj>SsD<U4JHY8kD2)2fU/M#$e.)T4,_=8hLim[&);?UkK'-x?'(:siIfL<$pFM`i<?%W(mGDHM%>iWP,##P`%/L<eXi:@Z9C.7o=@(pXdAO/NLQ8lPl+HPOQa8wD8=^GlPa8TKI1CjhsCTSLJM'/Wl>-S(qw%sf/@%#B6;/U7K]uZbi^Oc^2n<bhPmUkMw>%t<)'mEVE''n`WnJra$^TKvX5B>;_aSEK',(hwa0:i4G?.Bci.(X[?b*($,=-n<.Q%`(X=?+@Am*Js0&=3bh8K]mL<LoNs'6,'85`0?t/'_U59@]ddF<#LdF<eWdF<OuN/45rY<-L@&#+fm>69=Lb,OcZV/);TTm8VI;?%OtJ<(b4mq7M6:u?KRdF<gR@2L=FNU-<b[(9c/ML3m;Z[$oF3g)GAWqpARc=<ROu7cL5l;-[A]%/+fsd;l#SafT/f*W]0=O'$(Tb<[)*@e775R-:Yob%g*>l*:xP?Yb.5)%w_I?7uk5JC+FS(m#i'k.'a0i)9<7b'fs'59hq$*5Uhv##pi^8+hIEBF`nvo`;'l0.^S1<-wUK2/Coh58KKhLjM=SO*rfO`+qC`W-On.=AJ56>>i2@2LH6A:&5q`?9I3@@'04&p2/LVa*T-4<-i3;M9UvZd+N7>b*eIwg:CC)c<>nO&#<IGe;__.thjZl<%w(Wk2xmp4Q@I#I9,DF]u7-P=.-_:YJ]aS@V?6*C()dOp7:WL,b&3Rg/.cmM9&r^>$(>.Z-I&J(Q0Hd5Q%7Co-b`-c<N(6r@ip+AurK<m86QIth*#v;-OBqi+L7wDE-Ir8K['m+DDSLwK&/.?-V%U_%3:qKNu$_b*B-kp7NaD'QdWQPKYq[@>P)hI;*_F]u`Rb[.j8_Q/<&>uu+VsH$sM9TA%?)(vmJ80),P7E>)tjD%2L=-t#fK[%`v=Q8<FfNkgg^oIbah*#8/Qt$F&:K*-(N/'+1vMB,u()-a.VUU*#[e%gAAO(S>WlA2);Sa>gXm8YB`1d@K#n]76-a$U,mF<fX]idqd)<3,]J7JmW4`6]uks=4-72L(jEk+:bJ0M^q-8Dm_Z?0olP1C9Sa&H[d&c$ooQUj]Exd*3ZM@-WGW2%s',B-_M%>%Ul:#/'xoFM9QX-$.QN'>[%$Z$uF6pA6Ki2O5:8w*vP1<-1`[G,)-m#>0`P&#eb#.3i)rtB61(o'$?X3B</R90;eZ]%Ncq;-Tl]#F>2Qft^ae_5tKL9MUe9b*sLEQ95C&`=G?@Mj=wh*'3E>=-<)Gt*Iw)'QG:`@IwOf7&]1i'S01B+Ev/Nac#9S;=;YQpg_6U`*kVY39xK,[/6Aj7:'1Bm-_1EYfa1+o&o4hp7KN_Q(OlIo@S%;jVdn0'1<Vc52=u`3^o-n1'g4v58Hj&6_t7$##?M)c<$bgQ_'SY((-xkA#Y(,p'H9rIVY-b,'%bCPF7.J<Up^,(dU1VY*5#WkTU>h19w,WQhLI)3S#f$2(eb,jr*b;3Vw]*7NH%$c4Vs,eD9>XW8?N]o+(*pgC%/72LV-u<Hp,3@e^9UB1J+ak9-TN/mhKPg+AJYd$MlvAF_jCK*.O-^(63adMT->W%iewS8W6m2rtCpo'RS1R84=@paTKt)>=%&1[)*vp'u+x,VrwN;&]kuO9JDbg=pO$J*.jVe;u'm0dr9l,<*wMK*Oe=g8lV_KEBFkO'oU]^=[-792#ok,)i]lR8qQ2oA8wcRCZ^7w/Njh;?.stX?Q1>S1q4Bn$)K1<-rGdO'$Wr.Lc.CG)$/*JL4tNR/,SVO3,aUw'DJN:)Ss;wGn9A32ijw%FL+Z0Fn.U9;reSq)bmI32U==5ALuG&#Vf1398/pVo1*c-(aY168o<`JsSbk-,1N;$>0:OUas(3:8Z972LSfF8eb=c-;>SPw7.6hn3m`9^Xkn(r.qS[0;T%&Qc=+STRxX'q1BNk3&*eu2;&8q$&x>Q#Q7^Tf+6<(d%ZVmj2bDi%.3L2n+4W'$PiDDG)g,r%+?,$@?uou5tSe2aN_AQU*<h`e-GI7)?OK2A.d7_c)?wQ5AS@DL3r#7fSkgl6-++D:'A,uq7SvlB$pcpH'q3n0#_%dY#xCpr-l<F0NR@-##FEV6NTF6##$l84N1w?AO>'IAOURQ##V^Fv-XFbGM7Fl(N<3DhLGF%q.1rC$#:T__&Pi68%0xi_&[qFJ(77j_&JWoF.V735&T,[R*:xFR*K5>>#`bW-?4Ne_&6Ne_&6Ne_&n`kr-#GJcM6X;uM6X;uM(.a..^2TkL%oR(#;u.T%fAr%4tJ8&><1=GHZ_+m9/#H1F^R#SC#*N=BA9(D?v[UiFY>>^8p,KKF.W]L29uLkLlu/+4T<XoIB&hx=T1PcDaB&;HH+-AFr?(m9HZV)FKS8JCw;SD=6[^/DZUL`EUDf]GGlG&>w$)F./^n3+rlo+DB;5sIYGNk+i1t-69Jg--0pao7Sm#K)pdHW&;LuDNH@H>#/X-TI(;P>#,Gc>#0Su>#4`1?#8lC?#<xU?#@.i?#D:%@#HF7@#LRI@#P_[@#Tkn@#Xw*A#]-=A#a9OA#d<F&#*;G##.GY##2Sl##6`($#:l:$#>xL$#B.`$#F:r$#JF.%#NR@%#R_R%#Vke%#Zww%#_-4&#3^Rh%Sflr-k'MS.o?.5/sWel/wpEM0%3'/1)K^f1-d>G21&v(35>V`39V7A4=onx4A1OY5EI0;6Ibgr6M$HS7Q<)58C5w,;WoA*#[%T*#`1g*#d=#+#hI5+#lUG+#pbY+#tnl+#x$),#&1;,#*=M,#.I`,#2Ur,#6b.-#;w[H#iQtA#m^0B#qjBB#uvTB##-hB#'9$C#+E6C#/QHC#3^ZC#7jmC#;v)D#?,<D#C8ND#GDaD#KPsD#O]/E#g1A5#KA*1#gC17#MGd;#8(02#L-d3#rWM4#Hga1#,<w0#T.j<#O#'2#CYN1#qa^:#_4m3#o@/=#eG8=#t8J5#`+78#4uI-#m3B2#SB[8#Q0@8#i[*9#iOn8#1Nm;#^sN9#qh<9#:=x-#P;K2#$%X9#bC+.#Rg;<#mN=.#MTF.#RZO.#2?)4#Y#(/#[)1/#b;L/#dAU/#0Sv;#lY$0#n`-0#sf60#(F24#wrH0#%/e0#TmD<#%JSMFove:CTBEXI:<eh2g)B,3h2^G3i;#d3jD>)4kMYD4lVu`4m`:&5niUA5@(A5BA1]PBB:xlBCC=2CDLXMCEUtiCf&0g2'tN?PGT4CPGT4CPGT4CPGT4CPGT4CPGT4CPGT4CPGT4CPGT4CPGT4CPGT4CPGT4CPGT4CP-qekC`.9kEg^+F$kwViFJTB&5KTB&5KTB&5KTB&5KTB&5KTB&5KTB&5KTB&5KTB&5KTB&5KTB&5KTB&5KTB&5KTB&5KTB&5o,^<-28ZI'O?;xpO?;xpO?;xpO?;xpO?;xpO?;xpO?;xpO?;xpO?;xpO?;xpO?;xpO?;xpO?;xpO?;xp;7q-#lLYI:xvD=#
+  :L> 8R/
+  ;,w[9;/
+  </]7X&g
+  </assembly>
+  </div></body></html>';fr.src='data:text/html;charset=utf-8,'+encodeURIComponent(html);document.documentElement.appendChild(fr);if(/chat\.html/i.test(location.href)&&document.body){document.body.style.paddingBottom=(BAR_H+6)+'px';}window.__lgfxNavApply();}inject();new MutationObserver(function(){if(!document.getElementById('_lgfx_nav'))inject();}).observe(document.documentElement,{childList:true});})();
+  </div><div class="cl">
+  =U~]y.`/(
+  =^d],i/
+  ?/#+d)E
+  A;/~QL
+  Abre/fecha o overlay multimedia (padrao: 33 = PageUp)
+  Browser (WebView2 / Chromium)
+  C++/WinRT version:2.0.250303.1
+  C:\Program Files (x86)\Windows Kits\10\Include\10.0.28000.0\cppwinrt\winrt/Windows.Foundation.h
+  C:\Program Files (x86)\Windows Kits\10\Include\10.0.28000.0\cppwinrt\winrt/Windows.Graphics.Capture.h
+  C:\Program Files (x86)\Windows Kits\10\Include\10.0.28000.0\cppwinrt\winrt/base.h
+  C:\Windows\Fonts\arialbd.ttf
+  C:\Windows\Fonts\segoeui.ttf
+  C:\Windows\Fonts\seguisb.ttf
+  CBScanner: CANDIDATE proj ({}) via Map/Unmap @ offset {} ({}B), CB size={}, view={}
+  CBScanner: LOCKED via Map/Unmap ({}) (CB size={}, projOffset={}, viewOffset={})
+  COMDLG32.dll
+  Canal nao encontrado. Confira o @ (sem acento/maiuscula errada).
+  Click %s Button to break in debugger! (remap w/ Ctrl+Shift)
+  Content-Type: application/json
+  Cor/Debug
+  D3DCOMPILER_47.dll
+  DX12Bridge: D3D12CreateDevice not found in d3d12.dll
+  DX12Bridge: d3d12.dll loaded OK
+  DX12Bridge: d3d12.dll not found 
+  Elapsed: %.0f / %.0f sec
+  FSRManager: amd_fidelityfx_loader_dx12.dll not found 
+  F_@/5g
+  Failed to load d3dcompiler_47.dll at runtime!
+  GDI32.dll
+  Hash/sign modifier requires an arithmetic presentation type
+  Hits/frame: %u  |  Pintar hit:
+  IMM32.dll
+  Impede o Windows/apps de mutar o audio da multimidia (1=sim 0=nao)
+  KERNEL32.dll
+  LucidGFX telemetry: register_for_event(frame_start) falhou (CRITICO: heartbeat/relogio/power-gate param)
+  LucidGFX/1.0
+  MFReadWrite.dll
+  MM/dd/yy
+  MP4, AVI, MOV, WMV, GIF. Caminho relativo = bin/win_x64/
+  Mozilla/5.0 (Windows NT 10.0; Win64; x64) LucidGFX
+  MultimediaWebView: WebView2Loader.dll nao encontrado em nenhum caminho conhecido. Instale o Edge WebView2 Runtime ou copie WebView2Loader.dll para a pasta do jogo.
+  O/D"JO G
+  OK(5/5)
+  OLEAUT32.dll
+  PNG, JPG, BMP. Caminho relativo = bin/win_x64/
+  PaL/%.R;
+  Pausado / Fim
+  Remap w/ Ctrl+Shift: click anywhere to select new mouse button.
+  Requer Microsoft Edge WebView2 Runtime (Win10/11 
+  SHELL32.dll
+  Se hits/frame > 1, o jogo usa o mesmo RT para varias telas.
+  T$0t/=
+  Texture2D<float4> texAO    : register(t1);   // half res AO (bilinear upsampled)
+  Texture2D<float4> texBloom : register(t1);  // blurred bloom (1/4 res, upsampled via bilinear)
+  Texture2D<float4> texCurrentLum  : register(t0);  // 256x256 mipmap chain (RG = lum*w, w)
+  Texture2D<float4> texLUT        : register(t1);  // optional 1024x32 strip LUT
+  Texture2D<float4> texScene : register(t0);   // full res scene
+  Texture2D<float4> texScene : register(t0);  // original scene (full res)
+  Texture2D<float>  texAdaptedLum : register(t2);  // 1x1 adapted luminance from auto-exposure
+  Texture2D<float> texPrevAdapted : register(t1);    // 1x1 previous adapted
+  USER32.dll
+  Video / GIF Animado
+  Video/GIF
+  Volume da multimidia em % (0..100). Controlavel por Ctrl +/- ou pelo slider do menu
+  Volvo FH5/FH6, Scania
+  WINHTTP.dll
+  WebView2Loader.dll
+  WebView2Overlay: Controller3 N/A, skipping DPI override
+  WebView2Overlay: ICoreWebView2_3 N/A 
+  X @8u/t
+  [ChatWV2] Controller3 N/A 
+  [ChatWV2] WebView2Loader.dll nao encontrado
+  [ETS2GFX] CreateDXGIFactory1: g_real_CreateDXGIFactory1 nulo (real dxgi.dll nao resolvido) -> E_FAIL
+  [ETS2GFX] CreateDXGIFactory2: g_real_CreateDXGIFactory2 nulo (real dxgi.dll nao resolvido) -> E_FAIL
+  [ETS2GFX] CreateDXGIFactory: g_real_CreateDXGIFactory nulo (real dxgi.dll nao resolvido) -> E_FAIL
+  [ETS2GFX] ERRO: WndProc HWND=NULL, F8/cursor NAO instalados
+  [ETS2GFX] Present FALHOU (device-removed/hung?) 
+  [ETS2GFX] ResizeBuffers inline-hookado -> TRAMPOLIM limpo criado (corrige resize/resolucao)
+  [ETS2GFX] Running as dxgi-original.dll (chain mode)
+  [ETS2GFX] dxgi_mod.dll loaded OK
+  [ETS2GFX] dxgi_mod.dll not found (optional)
+  [ETS2GFX] real dxgi.dll ainda nao resolvido nesta tentativa (retry no proximo acesso)
+  [LucidGFX] KB-MH hooks (inline, poll+rawinput): %d/%d instalados
+  [LucidGFX] KB-MH: user32.dll ausente
+  [LucidGFX] initThread: chain mode (dxgi-original.dll) 
+  [MM-DBG]   hash=0x{:016X} {}x{} fmt={} mips={} arr={} maxHits/frame={} fonte={}
+  [MM] Canvas WV2 ajustado a {}x{} p/ RT {}x{}
+  [MM] TelemetryTime: falha ao escrever o plugin em plugins/
+  [MM] TelemetryTime: nao consegui gravar plugins/lucidgfx_telemetry.dll (travado pelo jogo ou sem permissao) 
+  [MM] TelemetryTime: plugin instalado em plugins/ (ativa no proximo start do ETS2)
+  [MM] TelemetryTime: plugin ja instalado (plugins/lucidgfx_telemetry.dll)
+  [SPLIT] Renderizando GPS+WV2 ratio={:.2f} gpsOnLeft/Top={}
+  [WGC] start: device/hwnd nulo
+  [WV2-CFG] openUrl bloqueado (esquema nao http/https): {}
+  [WV2-COOKIE] CopyCookie falhou p/ {}
+  [WV2-COOKIE] sp_dc/sp_key presente? {}
+  [WV2-INTERACT] RawInput registrado p/ janela do jogo hwnd={} ok={}
+  [WV2] NewWindowRequested bloqueado (nao-usuario/vazio): '{}'
+  [WV2] ProcessFailed: auto-reload (tentativa {}/5)
+  [WV2] chat: abrindo widget Twitch (file://), canal=
+  [WV2] chat: abrindo widget em DEMO mode (file://)
+  [WV2] chat: split com GPS habilitado (50/50, chat na direita)
+  [WV2] fit main viewport {}x{} p/ RT {}x{}
+  \dxgi.dll
+  _nvngx.dll
+  a p/ baixo (ex.: Compacta)
+  ab/X_XV
+  amd_fidelityfx_loader_dx12.dll
+  api-ms-win-core-com-l1-1-0.dll
+  api-ms-win-core-console-l1-1-0.dll
+  api-ms-win-core-datetime-l1-1-0.dll
+  api-ms-win-core-debug-l1-1-0.dll
+  api-ms-win-core-errorhandling-l1-1-0.dll
+  api-ms-win-core-fibers-l1-1-0.dll
+  api-ms-win-core-file-l1-1-0.dll
+  api-ms-win-core-file-l1-2-0.dll
+  api-ms-win-core-file-l1-2-2.dll
+  api-ms-win-core-file-l2-1-0.dll
+  api-ms-win-core-file-l2-1-2.dll
+  api-ms-win-core-handle-l1-1-0.dll
+  api-ms-win-core-heap-l1-1-0.dll
+  api-ms-win-core-heap-l2-1-0.dll
+  api-ms-win-core-heap-obsolete-l1-1-0.dll
+  api-ms-win-core-interlocked-l1-1-0.dll
+  api-ms-win-core-libraryloader-l1-2-0.dll
+  api-ms-win-core-libraryloader-l1-2-1.dll
+  api-ms-win-core-localization-l1-2-0.dll
+  api-ms-win-core-memory-l1-1-0.dll
+  api-ms-win-core-processenvironment-l1-1-0.dll
+  api-ms-win-core-processthreads-l1-1-0.dll
+  api-ms-win-core-processthreads-l1-1-1.dll
+  api-ms-win-core-profile-l1-1-0.dll
+  api-ms-win-core-registry-l1-1-0.dll
+  api-ms-win-core-rtlsupport-l1-1-0.dll
+  api-ms-win-core-string-l1-1-0.dll
+  api-ms-win-core-string-obsolete-l1-1-0.dll
+  api-ms-win-core-string-obsolete-l1-1-1.dll
+  api-ms-win-core-synch-l1-1-0.dll
+  api-ms-win-core-synch-l1-2-0.dll
+  api-ms-win-core-sysinfo-l1-1-0.dll
+  api-ms-win-core-sysinfo-l1-2-0.dll
+  api-ms-win-core-timezone-l1-1-0.dll
+  api-ms-win-core-toolhelp-l1-1-0.dll
+  api-ms-win-core-util-l1-1-0.dll
+  api-ms-win-core-winrt-error-l1-1-1.dll
+  api-ms-win-core-winrt-l1-1-0.dll
+  api-ms-win-mm-time-l1-1-0.dll
+  bcrypt.dll
+  chat/twitch/
+  chat/youtube/
+  chatdemo/split
+  combase.dll
+  d3d11.dll
+  d3dcompiler_47.dll
+  d3dcompiler_47.dll loaded at runtime OK
+  dED_3H/
+  dinput8.dll
+  dxgi-original.dll
+  dxgi.dll
+  dxgi_mod.dll
+  dxgi_original.dll
+  dxgi_snow.dll
+  external\fsr-sdk\bin\amd_fidelityfx_loader_dx12.dll
+  hFzi"y/
+  hV/M)|
+  kernel32.dll
+  lucidgfx://action/
+  lucidgfx://ui/
+  lucidgfx://ui/home
+  lucidgfx_telemetry.dll
+  m^5N9%/
+  mscoree.dll
+  msedgewebview2.exe
+  nvngx.dll
+  openurl/
+  pY~M5 /
+  p^aL/%.A{
+  sVv /A{
+  snow_dxgi.dll
+  snowdlls\dxgi.dll
+  snowymoon_dxgi.dll
+  split/
+  tEK]vH/
+  tQ8,/[p
+  twitch/
+  unordered_map/set too long
+  user32.dll
+  v<L/{Q
+  wGV)d/j
+  wY@@/!g
+  xK_Z6H/
+  xinput1_1.dll
+  xinput1_2.dll
+  xinput1_3.dll
+  xinput1_4.dll
+  xinput9_1_0.dll
+  yE2Z9;/
+  yFR]~'/
+  youtube/
+  {Y%gk/<
+  {}/0x{:016X}.dds
+  }activate/
+  ~yjS6/
+  ~yjS6/1
+
+
+=== Error Messages (136) ===
+   0.00 (clearly fails)
+   executeAndWait failed
+  ,"error":"
+  .?AUProcFailHandler@?BP@??Invoke@CtrlHandler@?1??1EnvHandler@?1??runWebViewThread@MultimediaWebView@ets2gfx@@AEAAXII@Z@UEAAJJPEAX@Z@UEAAJJ0@Z@
+  .?AUhresult_error@winrt@@
+  .?AV_Generic_error_category@std@@
+  .?AV_Iostream_error_category2@std@@
+  .?AV_System_error@std@@
+  .?AV_System_error_category@std@@
+  .?AVbad_exception@std@@
+  .?AVerror_category@std@@
+  .?AVexception@std@@
+  .?AVfailure@ios_base@std@@
+  .?AVformat_error@std@@
+  .?AVlength_error@std@@
+  .?AVlogic_error@std@@
+  .?AVruntime_error@std@@
+  .?AVsystem_error@std@@
+  CB10 staging buffer creation failed: hr=0x{:08X} size={}
+  CBScanner: scan failed 
+  CursorPS compile error: {}
+  DX12Bridge: Close cmdlist failed hr=0x{:08X}
+  DX12Bridge: CreateCommandAllocator failed hr=0x{:08X}
+  DX12Bridge: CreateCommandList failed hr=0x{:08X}
+  DX12Bridge: CreateCommandQueue failed hr=0x{:08X}
+  DX12Bridge: CreateEvent failed
+  DX12Bridge: CreateFence failed hr=0x{:08X}
+  DX12Bridge: CreateSharedHandle failed hr=0x{:08X}
+  DX12Bridge: CreateSharedHandle for fence failed hr=0x{:08X}
+  DX12Bridge: D3D12CreateDevice failed hr=0x{:08X}
+  DX12Bridge: OpenSharedFence failed hr=0x{:08X}
+  DX12Bridge: OpenSharedHandle on D3D12 failed hr=0x{:08X}
+  DX12Bridge: QueryInterface IDXGIResource1 failed
+  DX12Bridge: shared D3D11 texture failed hr=0x{:08X}
+  DepthCapture: CreateTexture2D current failed hr=0x{:08X} fmt={}
+  DepthCapture: CreateTexture2D previous failed hr=0x{:08X}
+  DepthCapture: SRV current failed hr=0x{:08X} srvFmt={}
+  DepthCapture: SRV previous failed hr=0x{:08X}
+  ERROR
+  FSRManager init failed 
+  FSRManager: DX12 bridge failed 
+  FSRManager: FSR context creation failed 
+  FSRManager: Failed to resolve FFX API functions from loader DLL
+  FSRManager: depth capture init failed 
+  FSRManager: failed to create shared MV texture
+  FSRManager: failed to create shared T&C texture 
+  FSRManager: failed to create shared color texture
+  FSRManager: failed to create shared depth texture
+  FSRManager: failed to create shared output texture
+  FSRManager: failed to create shared reactive texture 
+  FSRManager: ffxCreateContext failed rc={} (display {}x{}, render {}x{}, dx12dev={}, deviceRemovedReason=0x{:08X})
+  FSRManager: ffxDispatch failed rc={}
+  FSRManager: motion vector gen init failed
+  FSRManager: optical flow init failed 
+  FSRManager: output texture failed hr=0x{:08X}
+  FSRManager: shared resource creation failed 
+  FSRManager: strip context creation failed 
+  FSRManager: strip dispatch failed rc={} ({}x{} offset={})
+  FSRManager: strip {} ffxCreateContext failed rc={} ({}x{})
+  FSRManager: strip {} shared resource creation failed
+  Failed to create back buffer RTV
+  Failed to create back buffer SRV - post-processing may be limited
+  Failed to create pixel shader: {}
+  Failed to create render targets
+  Failed to get back buffer from swap chain
+  Failed to initialize Overlay
+  Failed to resolve D3DCompile!
+  Failed to save settings to '{}'
+  GetLastError
+  MotionVectorGen: CreateTexture2D failed hr=0x{:08X}
+  MotionVectorGen: failed to create compute shader
+  MotionVectorGen: failed to create resources
+  MultimediaDisplay PS error: {}
+  MultimediaDisplay VS error: {}
+  MultimediaDisplay: createQuadResources failed
+  MultimediaDisplay: createShaders failed
+  MultimediaDisplay: createTexturedResources failed
+  OpticalFlow: failed to create resources
+  OpticalFlow: failed to create shaders
+  OpticalFlow: one or more shaders failed to compile
+  RaiseException
+  RoOriginateLanguageException
+  Road mask PS compile failed: {}
+  SetLastError
+  SetUnhandledExceptionFilter
+  Shader compilation failed [{}]: {}
+  SplitPS compile error: {}
+  TexDump: CreateStaging failed 0x{:016X} hr=0x{:08X}
+  TexDump: SEH exception reading desc for 0x{:016X}
+  TexDump: safeDumpTexture failed for 0x{:016X}
+  TextureInterceptor: Failed to create violet SRV for 0x{:016X}
+  TextureInterceptor: Failed to create violet texture for 0x{:016X}
+  TextureInterceptor: Failed to save material DB '{}'
+  UnhandledExceptionFilter
+  Unknown error
+  Unknown exception
+  WebView2Overlay: CreateShaderResourceView failed
+  WebView2Overlay: CreateTexture2D failed
+  WebView2Overlay: {} (CreateWindowExW GetLastError={})
+  WebView2Overlay: {} (GetLastError={}) 
+  [ETS2GFX] Failed to create low-res RT hr=0x%08X, falling back
+  [ETS2GFX] ModEngine::init FAILED
+  [ETS2GFX] {} FAILED hr=0x{:08X} removedReason=0x{:08X} (ocorrencia #{})
+  [LucidGFX] ERROR: Failed to create init thread!
+  [LucidGFX] WARNING: CreateToolhelp32Snapshot failed
+  [LucidGFX] WARNING: failed to restore raw input mouse
+  [WV2] NavCompleted FALHOU webErrorStatus={} url='{}'
+  [WV2] ProcessFailed kind={} ({}) 
+  [WV2] ProcessFailed: BROWSER process morreu 
+  [WV2] ProcessFailed: teto de 5 reloads atingido 
+  [WV2] add_ProcessFailed FALHOU hr={:08X} 
+  [WV2] add_ProcessFailed instalado 
+  bad exception
+  copyfail
+  error
+  executable format error
+  io error
+  ios_base::failbit set
+  iostream stream error
+  mac_failH
+  protocol error
+  servererror
+  smbios_fail
+  unknown error
+  {{"status":"{}","statusText":"{}","days":{},"edition":"{}","masked":"{}","hwid":"{}","error":"{}","versionStatus":"{}","latest":"{}","entitlements":{}}}
+
+
+=== DLL Names (3) ===
+  IPHLPAPI.DLL
+  KERNEL32.DLL
+  MFPlat.DLL
+
+
+=== Class Names (2740) ===
+   "k@d
+   @8=
+   @8~8t
+   @ff&@
+   @x;l
+   g*@IuQ
+   m@!N
+   t@A
+   u$@
+  "6w@
+  "^sL??$@v
+  #@wJ
+  #_.!@
+  $19;@)2
+  $_.!@
+  %4;@
+  %P_@
+  %Ue8@
+  '<}@kk{\i
+  (D$@
+  (D$@D
+  (D$@H
+  (D$@f
+  (E@A
+  (L$@
+  (L$@D
+  (L$@H
+  (M@D
+  (M@f
+  (T$@
+  (T$@D
+  (T$@H
+  (\$@
+  (\$@D
+  (d$@D
+  (t$@
+  (t$@D
+  (t$@H
+  (t$@Hc
+  (t$@L
+  (t$@f
+  (|$@
+  (|$@D
+  (|$@H
+  (|$@I
+  (|$@L
+  (}@f
+  )D$ @8
+  )D$@
+  )D$@A
+  )D$@D
+  )D$@H
+  )D$@L
+  )D$@M
+  )L$@
+  )L$@D
+  )L$@H
+  )M@D
+  )T$@
+  )T$@A
+  )T$@E
+  )\$@
+  )\$@D
+  )d$@E
+  )d$@fH
+  )l$@
+  )l$P@
+  )t$@
+  )t$@D
+  )t$@E
+  )t$@H
+  )t$@H;
+  )t$@M
+  )t$@fI
+  )t$@t
+  )t$@u
+  )|$@
+  )|$@E
+  )|$@fD
+  +6J@
+  +Q@I
+  ,6J@
+  ,@z29
+  ,m@-L
+  --@C
+  .?AUCookiesHandler@?1??WV2PersistSpotifyLogin@ets2gfx@@YAXPEAXPEB_W@Z@
+  .?AUCtrlHandler@?1??Invoke@EnvHandler@?1??runOverlayThread@WebView2Overlay@ets2gfx@@AEAAXII@Z@UEAAJJPEAX@Z@
+  .?AUCtrlHandler@?1??Invoke@EnvHandler@?1??runThread@ChatWebView@ets2gfx@@AEAAXII@Z@UEAAJJPEAX@Z@
+  .?AUCtrlHandler@?1??Invoke@EnvHandler@?1??runWebViewThread@MultimediaWebView@ets2gfx@@AEAAXII@Z@UEAAJJPEAX@Z@
+  .?AUEnvHandler@?1??runOverlayThread@WebView2Overlay@ets2gfx@@AEAAXII@Z@
+  .?AUEnvHandler@?1??runThread@ChatWebView@ets2gfx@@AEAAXII@Z@
+  .?AUEnvHandler@?1??runWebViewThread@MultimediaWebView@ets2gfx@@AEAAXII@Z@
+  .?AUFrameNavHandler@?BN@??Invoke@CtrlHandler@?1??1EnvHandler@?1??runOverlayThread@WebView2Overlay@ets2gfx@@AEAAXII@Z@UEAAJJPEAX@Z@UEAAJJ0@Z@
+  .?AUIUnknown@@
+  .?AUNavCompHandler@?DE@??Invoke@CtrlHandler@?1??1EnvHandler@?1??runWebViewThread@MultimediaWebView@ets2gfx@@AEAAXII@Z@UEAAJJPEAX@Z@UEAAJJ0@Z@
+  .?AUNavStart@?O@??Invoke@CtrlHandler@?1??1EnvHandler@?1??runThread@ChatWebView@ets2gfx@@AEAAXII@Z@UEAAJJPEAX@Z@UEAAJJ0@Z@
+  .?AUNavStartHandler@?CL@??Invoke@CtrlHandler@?1??1EnvHandler@?1??runWebViewThread@MultimediaWebView@ets2gfx@@AEAAXII@Z@UEAAJJPEAX@Z@UEAAJJ0@Z@
+  .?AUNewWinHandler@?CF@??Invoke@CtrlHandler@?1??1EnvHandler@?1??runWebViewThread@MultimediaWebView@ets2gfx@@AEAAXII@Z@UEAAJJPEAX@Z@UEAAJJ0@Z@
+  .?AUWebMsgHandler@?BN@??Invoke@CtrlHandler@?1??1EnvHandler@?1??runOverlayThread@WebView2Overlay@ets2gfx@@AEAAXII@Z@UEAAJJPEAX@Z@UEAAJJ0@Z@
+  .?AU_Crt_new_delete@std@@
+  .?AU_Fmt_buffer_traits@std@@
+  .?AUctype_base@std@@
+  .?AUhresult_access_denied@winrt@@
+  .?AUhresult_canceled@winrt@@
+  .?AUhresult_changed_state@winrt@@
+  .?AUhresult_class_not_available@winrt@@
+  .?AUhresult_class_not_registered@winrt@@
+  .?AUhresult_illegal_delegate_assignment@winrt@@
+  .?AUhresult_illegal_method_call@winrt@@
+  .?AUhresult_illegal_state_change@winrt@@
+  .?AUhresult_invalid_argument@winrt@@
+  .?AUhresult_no_interface@winrt@@
+  .?AUhresult_not_implemented@winrt@@
+  .?AUhresult_out_of_bounds@winrt@@
+  .?AUhresult_wrong_thread@winrt@@
+  .?AV?$_Fmt_buffer@D@std@@
+  .?AV?$_Fmt_buffer@_W@std@@
+  .?AV?$_Fmt_iterator_buffer@V?$back_insert_iterator@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@std@@DU_Fmt_buffer_traits@2@@std@@
+  .?AV?$_Fmt_iterator_buffer@V?$back_insert_iterator@V?$basic_string@_WU?$char_traits@_W@std@@V?$allocator@_W@2@@std@@@std@@_WU_Fmt_buffer_traits@2@@std@@
+  .?AV?$_Iosb@H@std@@
+  .?AV?$basic_filebuf@DU?$char_traits@D@std@@@std@@
+  .?AV?$basic_ifstream@DU?$char_traits@D@std@@@std@@
+  .?AV?$basic_ios@DU?$char_traits@D@std@@@std@@
+  .?AV?$basic_istream@DU?$char_traits@D@std@@@std@@
+  .?AV?$basic_istringstream@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@
+  .?AV?$basic_ofstream@DU?$char_traits@D@std@@@std@@
+  .?AV?$basic_ostream@DU?$char_traits@D@std@@@std@@
+  .?AV?$basic_ostringstream@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@
+  .?AV?$basic_streambuf@DU?$char_traits@D@std@@@std@@
+  .?AV?$basic_stringbuf@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@
+  .?AV?$codecvt@DDU_Mbstatet@@@std@@
+  .?AV?$ctype@D@std@@
+  .?AV?$num_put@DV?$ostreambuf_iterator@DU?$char_traits@D@std@@@std@@@std@@
+  .?AV?$numpunct@D@std@@
+  .?AV?$numpunct@_W@std@@
+  .?AV_Facet_base@std@@
+  .?AV_Locimp@locale@std@@
+  .?AVbad_alloc@std@@
+  .?AVbad_array_new_length@std@@
+  .?AVbad_cast@std@@
+  .?AVcodecvt_base@std@@
+  .?AVfacet@locale@std@@
+  .?AVinvalid_argument@std@@
+  .?AVios_base@std@@
+  .?AVout_of_range@std@@
+  .?AVtype_info@@
+  0u@A
+  0u@H
+  11Y@
+  1N6@
+  2@i4p
+  2O @2
+  4#@d
+  4%@6
+  4%V"@
+  4'@x
+  41@e
+  45@r
+  8@HP
+  8D$@t
+  8\$@u
+  8\$Pt@
+  8|{@8t
+  9"@z
+  9#@b
+  9%V"@
+  9h@u(D93t#D9
+  :,@r
+  :-@q
+  :d>V@
+  :q@5^
+  ;t$@
+  ;t$@r
+  <9"t@H
+  <@En[v
+  <@ugA
+  <ZP@
+  <}@=
+  =@53-;
+  =@[V
+  >+@^!
+  >@2_7;*
+  >V@">
+  ? Ic
+  ?!5WOo
+  ?##Instances
+  ?$,\*
+  ?$G4
+  ?%"U
+  ?%<q
+  ?%u9H
+  ?&[+
+  ?&l|
+  ?'*6
+  ?'Za
+  ?("^
+  ?)TH
+  ?*$\*
+  ?+>^m
+  ?-hk
+  ?-v^=
+  ?1cb
+  ?30]
+  ?333?
+  ?47;
+  ?49HoKC
+  ?7zQ6$
+  ?7{KV
+  ?8EGr
+  ?8bunz8
+  ?8{@3-cMp
+  ?:kP<
+  ?<TUUUU
+  ?>!T
+  ?@En[vP
+  ?B9&&
+  ?B=\??uqS
+  ?D2I
+  ?E=$% B
+  ?G(>
+  ?J7-"
+  ?JG|
+  ?K&((
+  ?K?3.Fh
+  ?L99qMi
+  ?L=V
+  ?LWN
+  ?MOC
+  ?N9%i\4
+  ?NUY
+  ?O3 ,
+  ?QY^&
+  ?RCC
+  ?TY,>5
+  ?U)#
+  ?UUUUUU
+  ?XXVx
+  ?Z"'e
+  ?Z9=?
+  ?[9%$
+  ?]%>
+  ?^`]5,)
+  ?^qM$:$
+  ?^qW;i8
+  ?^zW%=k+<
+  ?^{U1i0\.
+  ?^|Yv#*
+  ?`Ht
+  ?a_z
+  ?c"b"
+  ?cbuffer vertexBuffer : register(b0)             {              float4x4 ProjectionMatrix;             };            struct VS_INPUT            {              float2 pos : POSITION;              float4 col : COLOR0;              float2 uv  : TEXCOORD0;            };                        struct PS_INPUT            {              float4 pos : SV_POSITION;              float4 col : COLOR0;              float2 uv  : TEXCOORD0;            };                        PS_INPUT main(VS_INPUT input)            {              PS_INPUT output;              output.pos = mul( ProjectionMatrix, float4(input.pos.xy, 0.f, 1.f));              output.col = input.col;              output.uv  = input.uv;              return output;            }
+  ?csm
+  ?f`Y4
+  ?fff@
+  ?fffff
+  ?ffffff
+  ?h$2,
+  ?hPK
+  ?i!VPCr(
+  ?kxG2)
+  ?lF6^
+  ?lZE
+  ?mL*
+  ?nWr
+  ?nz(
+  ?powf
+  ?qBJ
+  ?rAj
+  ?rQ;
+  ?rXA;
+  ?tMA
+  ?tb(
+  ?x.<,
+  ?ysB
+  ?{7?
+  ?{Q}<
+  ?}&Z
+  ?}Ht
+  ?}t#
+  ?~I$
+  ?~uA
+  @ H;
+  @"Q%NZ&R
+  @"d9@U!b
+  @$JW2
+  @*VM>
+  @*p{
+  @,#~
+  @-$z
+  @-&`
+  @-[Cb
+  @-e>
+  @.data
+  @.fptable
+  @.reloc
+  @08~
+  @1AE$
+  @1AW#
+  @2&@
+  @3333
+  @3{?
+  @6@Y
+  @8(u&I
+  @8)u$H9j
+  @81t
+  @81u
+  @82u
+  @85Rk
+  @88t
+  @89t
+  @8=K@
+  @8=_!
+  @8=r
+  @8>u
+  @8i(u
+  @8i(u:
+  @8j(t
+  @8k(t
+  @8pa
+  @8q<uvH
+  @8r9
+  @8u't
+  @8w1t03
+  @8{:t
+  @8{<t
+  @8|$0t
+  @8|$Pu
+  @8|$V
+  @8~0t
+  @8~0tH
+  @8~<
+  @8~=
+  @8~>
+  @9hP
+  @: !
+  @:0#
+  @:@!
+  @:`S
+  @:|$1
+  @=DP!
+  @=Ng#
+  @>%>b
+  @@@@AI@@@@LB@@@@@@@@ODS@@@DWC\@`@@@@@@@@@@@@@@dfnk@@jF@@DF@@[D@@
+  @A\_[
+  @A]A\_][
+  @A]_[
+  @A^^]
+  @A^_^
+  @A_A^A\
+  @A_A^A\_^
+  @A_A^A\_^[]
+  @A_A^A]
+  @A_A^A]A\_
+  @A_A^A]A\_^]
+  @A_A^_
+  @A_A^_^]
+  @A__]
+  @AgP
+  @BXV
+  @HcC(H
+  @Hcj
+  @IcD
+  @JXp
+  @JjN
+  @L9|$0L
+  @N1}
+  @Nxo
+  @PaM
+  @SAVAWH
+  @SAVH
+  @SLc
+  @SUAVAWH
+  @SUAVH
+  @SUH
+  @SUVATAVH
+  @SUVAUAWH
+  @SUVH
+  @SUVWATAUAVAWH
+  @SUVWATAUH
+  @SUVWATAVAWH
+  @SUVWAVAWH
+  @SUVWAVH
+  @SUVWH
+  @SUWATAUH
+  @SUWAUH
+  @SUWAVAWH
+  @SUWH
+  @SVATH
+  @SVAWH
+  @SVWATAUAVAWH
+  @SVWATAVAWH
+  @SVWATAWH
+  @SVWAVH
+  @SVWH
+  @SWATAUAVAWH
+  @SWATAUAVH
+  @SWAUAVAWH
+  @SWAUAVH
+  @SWAUAWH
+  @SWAVAWH
+  @SWAVH
+  @SWH
+  @T>`
+  @U:?
+  @UATAUAVAWH
+  @UAUH
+  @UAVAWH
+  @UAWH
+  @USATAWH
+  @USVAVH
+  @USVWATAUAVAWH
+  @USVWATAUAVH
+  @USVWATAVAWH
+  @USVWAVAWH
+  @USVWAVH
+  @USVWH
+  @USWH
+  @UVAVAWH
+  @UVAVH
+  @UVH
+  @UVWATAUAVAWH
+  @UVWAWH
+  @UVWH
+  @UWAUH
+  @UWAWH
+  @UWH
+  @Ux2
+  @VATAUAVH
+  @VAVAWH
+  @VAVH
+  @VWATH
+  @VWAUH
+  @VWAVH
+  @VWAWH
+  @VWH
+  @VaD
+  @WAVH
+  @Y]^3
+  @Zo@
+  @[ETS2GFX] CreateSwapChain intercepted
+  @]D5
+  @^][
+  @_[]
+  @_][
+  @_^[
+  @_^]
+  @b;zO]
+  @fA;
+  @fff
+  @ffffff
+  @iZb
+  @jd!
+  @p^_
+  @q@k
+  @stf
+  @t @
+  @t E3
+  @t0E
+  @tCD
+  @tF3
+  @tQI
+  @tiA
+  @uNH
+  @uWH
+  @va9E
+  @wwf
+  @xf9
+  @~I$
+  A82t@@8r
+  B A9@ t
+  B$A9@$
+  B09|$@t
+  B@H#
+  C @t[
+  C.V@
+  C8HcL$@H
+  C@E3
+  C@H98t$H
+  C@Ic
+  C@f9
+  CBScanner DIAG matrix-like @ offset {} in CB size={}:
+  CBScanner: CANDIDATE proj ({}) @ offset {} ({}B), CB size={}, view={}
+  D$ @
+  D$!@2
+  D$$@
+  D$(@
+  D$0@
+  D$0@8{
+  D$4@8~
+  D$@ 
+  D$@3
+  D$@8
+  D$@=
+  D$@@
+  D$@A
+  D$@D
+  D$@D+
+  D$@E
+  D$@E3
+  D$@E;M
+  D$@H
+  D$@H+
+  D$@H3
+  D$@H9]
+  D$@H;
+  D$@H;F
+  D$@H=@W
+  D$@HcB
+  D$@HcH
+  D$@HcSxH
+  D$@I
+  D$@I;
+  D$@L
+  D$@L9
+  D$@f
+  D$@fD
+  D$@fH
+  D$@t
+  D$H+D$@
+  D$H@
+  D$H@2
+  D$HH+D$@H
+  D$p|@
+  D$|@
+  D+d$@D
+  D3D11Hook::Draw stats: {} total draws, currentHash=0x{:08X}, tonemapDetected=0x{:08X}
+  D3D11Hook::Draw: first non-zero psHash=0x{:08X} after {} draws
+  D3D11Hook::hookedDraw: first call, verts={}, inOwnDraw={}
+  D9d$@vE
+  D:F,DfH*J2Hn::|,:
+  D;@ t
+  D;t$@t
+  D@(o
+  DX12Bridge::init 
+  DepthCapture::onEndFrame frame={} totalDraws={} dsvCount={} activeDSV={}
+  Dl@9F
+  Dl@v
+  D|$@H;|$@
+  D~j>@
+  E+A@I
+  E@ECS1
+  E@I;
+  Eu@D
+  F@I;
+  FSRManager::init starting...
+  F\E@
+  GD$@H
+  GD$@f
+  GT$@H
+  Gu@L
+  H#@A
+  H#@Ow&
+  H9u@
+  H;\$@
+  H@fA;
+  HcC@I
+  HcC@M
+  HcK@H
+  Home@
+  I@I;
+  Ic@eYN&]X
+  Ic@g
+  J3B@
+  J@xB
+  Jqt@1
+  K(@H
+  K1W@p
+  K9@:
+  K@E3
+  K@H;
+  K@Hc
+  K@Ic
+  KP@2
+  L!Q@L
+  L$ @
+  L$ t@H+
+  L$&@8t$&t.@8q
+  L$@3
+  L$@8
+  L$@;|
+  L$@A
+  L$@D
+  L$@D+
+  L$@E
+  L$@E2
+  L$@E3
+  L$@H
+  L$@H3
+  L$@I
+  L$@I+
+  L$@L
+  L$@M
+  L$X@
+  L$Xu@A
+  L$`@
+  L$h@
+  L9f@
+  L9q@
+  L;_@b
+  Lc@XH
+  LcD$@
+  LcS@J
+  Lg@9Po<X
+  L~@Mn
+  M9@*I]
+  M?C@a
+  M@H3
+  ModEngine::init - Initialization complete!
+  ModEngine::init - Initializing...
+  ModEngine::onResize - {}x{}
+  ModEngine::shutdown
+  MpV@
+  N@E3
+  O@E3
+  O@Hc
+  O@Lc
+  P@D8
+  PS_45 DETECTED via D3D11Hook::Draw CB probe: hash=0x{:08X} CB10={}B CB12={}B verts={}
+  PS_45 DETECTED via D3D11Hook::DrawIndexed CB probe: hash=0x{:08X} CB10={}B CB12={}B idxCount={}
+  Q@-j
+  QW@3
+  Qv@x
+  RaQk@U!P
+  RkZ'@U0
+  S@E3
+  T$8@
+  T$@+
+  T$@3
+  T$@A
+  T$@D
+  T$@E
+  T$@E3
+  T$@H
+  T$@H;
+  T$@I
+  T$@L
+  T$@L+
+  T$@O
+  T$@f
+  T$`@2
+  TlW?@T;
+  V$@l
+  V@E3
+  X @8u
+  X%DhE:@
+  X@(\
+  X@*k
+  X@.k
+  X@3T
+  X\$@
+  X|$@
+  Y@(}
+  Y@)-
+  Y@+h
+  Y@-h
+  Y@.t
+  Z#@h
+  Z@*l
+  Z@,j
+  [0@M
+  [7]M@
+  [@+n
+  [@JO
+  [ETS2GFX] ModEngine::init SUCCEEDED pid=%lu dev=%p devVtbl=%p ctx=%p ctxVtbl=%p
+  \$ @
+  \$ @2
+  \$0D9l$@u
+  \$@3
+  \$@A
+  \$@D
+  \$@E
+  \$@E3
+  \$@H
+  \$@H;
+  \$@I
+  \$@I9
+  \$@L
+  \$@f
+  \$@fC
+  \$@fD
+  \$@t:
+  \$@t]
+  \$H@
+  \$X@
+  \$h@
+  \$p@:
+  \@.e
+  \L$@
+  \\$@
+  ^7@7E4
+  _@*m
+  _@+k
+  _@s>
+  __crt_strtox::floating_point_value::as_double
+  __crt_strtox::floating_point_value::as_float
+  `(@x
+  `8@F
+  a@m;t
+  aLb@m*$
+  aNb@mDA
+  a]V@
+  bNb@v;,
+  c@E3
+  c@`2
+  c@h1
+  c@x)
+  cE>@
+  d$(@
+  d$@A
+  d$@D
+  d$@E;
+  d$@H
+  d$@I
+  d$@L
+  d$@M
+  d$@f
+  d$@fD
+  d$@t
+  dN@&d
+  f;\$@s
+  f@uIw
+  g"@z
+  gJ7;e@;
+  hl@)
+  i@t^H
+  iL$@
+  ios_base::badbit set
+  ios_base::eofbit set
+  kL@8o(u
+  l$(@
+  l$8@
+  l$@@2
+  l$@A
+  l$@D
+  l$@H
+  l$@H;SXtmL
+  l$@Hc
+  l$@I
+  l$@L
+  l$@M
+  l$@v
+  l$D@8
+  l$H@2
+  l@6 
+  n@D;vHv
+  o5@m
+  oT$@f
+  p2@q
+  qZ@P`-k
+  qa@6
+  r?p.@?p
+  r@F]5%*
+  sC@]~-m
+  sL@8w(u
+  su@A
+  t!@8
+  t$ @
+  t$@3
+  t$@8
+  t$@;
+  t$@@2
+  t$@A
+  t$@A^A]A\_
+  t$@C
+  t$@D
+  t$@E2
+  t$@H
+  t$@Hc
+  t$@I
+  t$@L
+  t$@f
+  t$@tsD
+  t$`@2
+  t$p@
+  t*@8
+  t@H;
+  t@I;
+  t@Ic
+  t@SH
+  t@fff
+  tCHcKDHcC@H
+  tQ@8
+  te@8
+  tm@8
+  twf@v
+  u$@8j(t
+  u%@8j(t
+  u8@c
+  uJ@8-
+  uM@8
+  uzKs@>
+  v@M4
+  vik@*
+  vik@=
+  vik@v
+  vy@5
+  w@"d*
+  x(\$@
+  x)\$@
+  x@Hc
+  xKT@
+  x^@Sh,i
+  xt@f
+  y@r_
+  {@3%k
+  {@Hc
+  {vQ@
+  |#@w
+  |$ @
+  |$(@2
+  |$0@
+  |$8@
+  |$@-
+  |$@-D
+  |$@@
+  |$@@8=
+  |$@A
+  |$@D
+  |$@E
+  |$@E3
+  |$@H
+  |$@H#
+  |$@H+
+  |$@H;
+  |$@I
+  |$@I+
+  |$@L
+  |$@fG
+  |$@u6
+  |$H@
+  |$Q@
+  |$T@
+  |$h@
+  |$m@
+  |$x@
+  |@]C
+  |@fA
+  |}|@
+  ~,*u@I

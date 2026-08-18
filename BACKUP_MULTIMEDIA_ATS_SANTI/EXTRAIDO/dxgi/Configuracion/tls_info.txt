@@ -1,0 +1,7 @@
+=== TLS Directory ===
+StartAddressOfRawData: 0x00000001801DF330
+EndAddressOfRawData: 0x00000001801DF4B1
+AddressOfIndex: 0x0000000180200070
+AddressOfCallBacks: 0x000000018013B9D8
+SizeOfZeroFill: 0
+Characteristics: 0x00500000

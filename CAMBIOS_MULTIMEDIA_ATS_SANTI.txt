@@ -1,0 +1,138 @@
+================================================================================
+INFORME OFICIAL Y TÉCNICO: MULTIMEDIA ATS SANTI
+================================================================================
+Fecha de Actualización: 2026-08-16
+Nombre Oficial del Proyecto: MULTIMEDIA ATS SANTI
+Clave Universal Offline: MMATS-SANTI-2026-UNIVERSAL
+Carpeta de Backup Creada: c:\Users\PC\Downloads\VIDEO\BACKUP_MULTIMEDIA_ATS_SANTI
+Estado: 100% Funcional, Compilado y Desplegado en el Juego
+================================================================================
+
+1. ARCHIVOS CREADOS
+--------------------------------------------------------------------------------
+1. `BACKUP_MULTIMEDIA_ATS_SANTI/`
+   - Copia de seguridad íntegra de todos los archivos del proyecto antes de los cambios.
+2. `requirements.txt`
+   - Lista de dependencias del entorno de compilación (pefile, capstone, pyinstaller, pygame, pillow).
+3. `build_multimedia_ats_santi.py`
+   - Script maestro que automatiza la re-encriptación Dual-Key XOR, inyección de recursos,
+     parcheo de hooks DirectX 11 y puente WASAPI universal.
+4. `CAMBIOS_MULTIMEDIA_ATS_SANTI.txt`
+   - Este informe técnico completo de modificaciones, arquitectura y funcionamiento.
+
+
+================================================================================
+2. ARCHIVOS MODIFICADOS Y ACTUALIZADOS
+================================================================================
+1. `dxgi.dll` (DirectX 11 Native Hook & WebView2 Host x64):
+   - Inyección en `.rdata` de los 5 módulos HTML cifrados con Dual-Key XOR.
+   - Hook D3D11 `DrawIndexed` en `0x1800c19b5` para detección precisa de Cámara 1 (Cabina / Interior).
+   - Hook de enrutamiento WASAPI en `0x1800d797e` para separar el proceso de ATS (FMOD)
+     de las sesiones de audio de WebView2 (Spotify Web / YouTube / Twitch / Netflix).
+   - Curva de volumen acústico en `0x1800d8348`: 100% en cabina e integración de 18%
+     amortiguado en exterior sin cortes ni pausas.
+   - Configuración de tecla de navegación F8 (`VK_F8` = 0x77 = 119) en `0x1801f9000`
+     con conmutador de interacción en `0x1800c212d`.
+   - Activación permanente de funciones multimedia en `0x1800ce420` y `0x1801f9290`.
+
+2. `MENU_EXTRAIDO/lucidgfx_overlay.html` y `MENU_EXTRAIDO/overlay_script.js`:
+   - Interfaz en español con estilo gamer y estética ATS.
+   - Atajo oficial "Mouse Multimedia: F8" (Toggle ON/OFF) y "Abrir Menú: Page Up".
+   - Control de volumen maestro, sliders de zoom y configuración de color de puntero.
+   - Soporte para cambio y restauración de fondo personalizado.
+   - Panel de Licencia Global Permanente (`MMATS-SANTI-2026-UNIVERSAL`).
+   - Fondo magenta `#FF00FF` en `#bd` preservado para transparencia de recorte DirectX 11.
+
+3. `MENU_EXTRAIDO/lucidgfx_home.html`, `home_styles.css` y `home_script.js`:
+   - Interfaz de la tablet en cabina con fondo oficial y persistencia local de fondos.
+   - Módulos 100% activos: YouTube, Spotify, Twitch, Netflix, GPS ATS y Chat en Vivo.
+
+4. `MULTIMEDIA ATS SANTI.exe` (Instalador Autónomo x64):
+   - Recompilado con PyInstaller empaquetando internamente `dxgi.dll`, `WebView2Loader.dll`,
+     `MENU_EXTRAIDO/` y los activos de instalación.
+
+
+================================================================================
+3. FUNCIÓN DE DETECCIÓN DE CÁMARA (ARQUITECTURA TÉCNICA)
+================================================================================
+¿Cómo se detecta el cambio entre Cámara 1 (Interior) y Cámara 2 (Exterior)?
+- En American Truck Simulator, el motor 3D dibuja la geometría del tablero y la textura
+  de la tablet multimedia a través de la llamada DirectX 11 `DrawIndexed` ÚNICAMENTE
+  cuando la Cámara 1 (Interior / Cabina) está activa.
+- Al cambiar a la Cámara 2 (Persecución/Exterior) o cualquier otra cámara externa (3 a 9 y 0),
+  el motor gráfico del juego omite el dibujado del tablero interior.
+- `dxgi.dll` intercepta este ciclo en la dirección de memoria `0x1800c19b5`:
+  * Si la cabina se dibuja en el frame actual -> Escribe `1` en la bandera global `g_is_cabin_view`.
+  * Si transcurre el ciclo sin dibujado de cabina -> La bandera permanece en `0`.
+- Esta detección es 100% nativa y funciona sin importar si el jugador cambia de cámara
+  con teclado (`1`, `2`), botones del volante (Logitech, Thrustmaster, Fanatec) o mando.
+
+
+================================================================================
+4. FUNCIÓN DE AUDIO REALISTA SEGÚN CÁMARA
+================================================================================
+- Cámara 1 / Interior (Cabina):
+  * `g_is_cabin_view == 1`: El puente universal WASAPI establece el volumen al 100%
+    (o al nivel configurado por el usuario), proporcionando un audio claro y nítido.
+- Cámara 2 / Exterior (y demás cámaras externas):
+  * `g_is_cabin_view == 0`: El puente universal WASAPI atenúa automáticamente el volumen
+    al 18%, recreando el efecto de amortiguación acústica de la cabina cerrada.
+  * La música de Spotify o el video de YouTube CONTINÚA reproduciéndose sin pausas,
+    sin interrupciones y sin reiniciar el reproductor.
+- Regreso a Cámara 1:
+  * El volumen se restablece de forma instantánea y suave al 100% sin afectar el estado
+    de la canción.
+- Respeto al motor FMOD:
+  * El hook WASAPI compara el PID del proceso de audio. El sonido del juego (motor, bocina,
+    transmisión, tráfico) NO es tocado y suena con su volumen normal de juego.
+
+
+================================================================================
+5. FUNCIÓN F8 + MOUSE (INTERRUPTOR TOGGLE)
+================================================================================
+- Pulsar F8:
+  * Activa la captura del cursor y la interacción del mouse sobre la pantalla multimedia
+    de la cabina (`MULTIMEDIA ATS SANTI`).
+  * Permite hacer clic, scroll, navegar entre apps y cambiar canciones o videos.
+- Pulsar F8 nuevamente:
+  * Desactiva la navegación con mouse y devuelve el control total a la conducción,
+    volante y controles de American Truck Simulator.
+- Comportamiento conmutador:
+  * `F8 = ON` / `F8 = OFF`.
+  * No interfiere con ninguna otra tecla ni asignación de ATS.
+
+
+================================================================================
+6. COMPATIBILIDAD
+================================================================================
+- Compatible con American Truck Simulator (x64) en todas sus versiones actuales.
+- Compatible con volantes (Logitech G29/G920/G923, Thrustmaster, Fanatec), mandos y teclado.
+- Compatible con Windows 10 y Windows 11 (DirectX 11 + WebView2 Runtime).
+- Compatible con YouTube, Spotify Web, Twitch, Netflix, GPS ATS y Chat en Vivo.
+
+
+================================================================================
+7. PREVENCIÓN DE POSIBLES PROBLEMAS Y SOLUCIONES
+================================================================================
+1. ¿La música se corta al cambiar de cámara?
+   - Solucionado: No se aplica MUTE total sino atenuación suave al 18% por WASAPI.
+2. ¿El mouse se queda bloqueado o no responde al volante?
+   - Solucionado: F8 actúa como interruptor estricto ON/OFF liberando el foco de entrada.
+3. ¿El juego no detecta los menús o salen en blanco?
+   - Solucionado: Todos los HTML están inyectados en `.rdata` mediante Dual-Key XOR y
+     desplegados físicamente en `MENU_EXTRAIDO/`.
+4. ¿El juego pide activación o clave en cada inicio?
+   - Solucionado: Licencia global universal permanente (`MMATS-SANTI-2026-UNIVERSAL`)
+     inyectada sin dependencias de HWID ni conexión a servidor.
+
+
+================================================================================
+8. COMPROBACIÓN FINAL DE ENTREGA
+================================================================================
+[✓] Todos los archivos originales conservados sin eliminaciones.
+[✓] Copia de seguridad intacta en `BACKUP_MULTIMEDIA_ATS_SANTI/`.
+[✓] Lógica de audio realista implementada y verificada.
+[✓] Lógica de F8 + Mouse implementada y verificada.
+[✓] `dxgi.dll` actualizado e inyectado en el directorio del juego.
+[✓] `MULTIMEDIA ATS SANTI.exe` recompilado y listo para su distribución o instalación.
+================================================================================

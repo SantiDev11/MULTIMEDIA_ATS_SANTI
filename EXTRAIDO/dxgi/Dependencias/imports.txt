@@ -1,0 +1,324 @@
+
+=== api-ms-win-core-winrt-l1-1-0.dll ===
+  [0x18013B7F8] RoGetActivationFactory (Ordinal: None)
+  [0x18013B800] RoInitialize (Ordinal: None)
+
+=== api-ms-win-core-file-l1-1-0.dll ===
+  [0x18013B2E8] CreateDirectoryA (Ordinal: None)
+  [0x18013B2F0] CreateDirectoryW (Ordinal: None)
+  [0x18013B2F8] GetFileAttributesA (Ordinal: None)
+  [0x18013B300] CreateFileW (Ordinal: None)
+  [0x18013B308] FindFirstFileExW (Ordinal: None)
+  [0x18013B310] GetFileSizeEx (Ordinal: None)
+  [0x18013B318] FlushFileBuffers (Ordinal: None)
+  [0x18013B320] GetFileType (Ordinal: None)
+  [0x18013B328] CreateFileA (Ordinal: None)
+  [0x18013B330] SetEndOfFile (Ordinal: None)
+  [0x18013B338] SetFilePointer (Ordinal: None)
+  [0x18013B340] WriteFile (Ordinal: None)
+  [0x18013B348] GetFileAttributesExW (Ordinal: None)
+  [0x18013B350] FindNextFileW (Ordinal: None)
+  [0x18013B358] SetFilePointerEx (Ordinal: None)
+  [0x18013B360] DeleteFileW (Ordinal: None)
+  [0x18013B368] SetFileInformationByHandle (Ordinal: None)
+  [0x18013B370] FindFirstFileW (Ordinal: None)
+  [0x18013B378] FindClose (Ordinal: None)
+  [0x18013B380] ReadFile (Ordinal: None)
+
+=== api-ms-win-core-handle-l1-1-0.dll ===
+  [0x18013B3D8] CloseHandle (Ordinal: None)
+
+=== api-ms-win-core-errorhandling-l1-1-0.dll ===
+  [0x18013B298] UnhandledExceptionFilter (Ordinal: None)
+  [0x18013B2A0] SetUnhandledExceptionFilter (Ordinal: None)
+  [0x18013B2A8] GetLastError (Ordinal: None)
+  [0x18013B2B0] SetLastError (Ordinal: None)
+
+=== api-ms-win-core-synch-l1-2-0.dll ===
+  [0x18013B748] WakeAllConditionVariable (Ordinal: None)
+  [0x18013B750] Sleep (Ordinal: None)
+  [0x18013B758] SleepConditionVariableSRW (Ordinal: None)
+
+=== api-ms-win-core-processthreads-l1-1-0.dll ===
+  [0x18013B5B0] TlsFree (Ordinal: None)
+  [0x18013B5B8] ExitThread (Ordinal: None)
+  [0x18013B5C0] TlsSetValue (Ordinal: None)
+  [0x18013B5C8] TlsGetValue (Ordinal: None)
+  [0x18013B5D0] ExitProcess (Ordinal: None)
+  [0x18013B5D8] TlsAlloc (Ordinal: None)
+  [0x18013B5E0] CreateProcessW (Ordinal: None)
+  [0x18013B5E8] GetCurrentThreadId (Ordinal: None)
+  [0x18013B5F0] CreateThread (Ordinal: None)
+  [0x18013B5F8] GetCurrentProcessId (Ordinal: None)
+  [0x18013B600] GetStartupInfoW (Ordinal: None)
+  [0x18013B608] GetExitCodeThread (Ordinal: None)
+  [0x18013B610] TerminateProcess (Ordinal: None)
+
+=== api-ms-win-core-sysinfo-l1-1-0.dll ===
+  [0x18013B768] GetTickCount (Ordinal: None)
+  [0x18013B770] GetSystemTimeAsFileTime (Ordinal: None)
+  [0x18013B778] GetTickCount64 (Ordinal: None)
+  [0x18013B780] GetSystemDirectoryA (Ordinal: None)
+
+=== api-ms-win-core-memory-l1-1-0.dll ===
+  [0x18013B538] VirtualProtect (Ordinal: None)
+  [0x18013B540] VirtualAlloc (Ordinal: None)
+  [0x18013B548] UnmapViewOfFile (Ordinal: None)
+  [0x18013B550] OpenFileMappingW (Ordinal: None)
+  [0x18013B558] MapViewOfFile (Ordinal: None)
+
+=== api-ms-win-core-libraryloader-l1-2-0.dll ===
+  [0x18013B458] DisableThreadLibraryCalls (Ordinal: None)
+  [0x18013B460] GetModuleFileNameW (Ordinal: None)
+  [0x18013B468] FreeLibrary (Ordinal: None)
+  [0x18013B470] LoadLibraryExW (Ordinal: None)
+  [0x18013B478] FreeLibraryAndExitThread (Ordinal: None)
+  [0x18013B480] GetModuleFileNameA (Ordinal: None)
+  [0x18013B488] GetModuleHandleExW (Ordinal: None)
+  [0x18013B490] GetProcAddress (Ordinal: None)
+  [0x18013B498] GetModuleHandleExA (Ordinal: None)
+  [0x18013B4A0] GetModuleHandleW (Ordinal: None)
+
+=== api-ms-win-core-heap-obsolete-l1-1-0.dll ===
+  [0x18013B420] GlobalUnlock (Ordinal: None)
+  [0x18013B428] GlobalLock (Ordinal: None)
+
+=== api-ms-win-core-string-obsolete-l1-1-1.dll ===
+  [0x18013B6D8] lstrcatA (Ordinal: None)
+
+=== api-ms-win-core-string-obsolete-l1-1-0.dll ===
+  [0x18013B6C8] lstrlenA (Ordinal: None)
+
+=== api-ms-win-core-toolhelp-l1-1-0.dll ===
+  [0x18013B7B0] Process32FirstW (Ordinal: None)
+  [0x18013B7B8] CreateToolhelp32Snapshot (Ordinal: None)
+  [0x18013B7C0] Process32NextW (Ordinal: None)
+
+=== api-ms-win-core-libraryloader-l1-2-1.dll ===
+  [0x18013B4B0] LoadLibraryA (Ordinal: None)
+  [0x18013B4B8] LoadLibraryW (Ordinal: None)
+
+=== api-ms-win-core-debug-l1-1-0.dll ===
+  [0x18013B280] IsDebuggerPresent (Ordinal: None)
+  [0x18013B288] OutputDebugStringA (Ordinal: None)
+
+=== api-ms-win-core-profile-l1-1-0.dll ===
+  [0x18013B630] QueryPerformanceCounter (Ordinal: None)
+  [0x18013B638] QueryPerformanceFrequency (Ordinal: None)
+
+=== api-ms-win-mm-time-l1-1-0.dll ===
+  [0x18013B810] timeBeginPeriod (Ordinal: None)
+
+=== api-ms-win-core-string-l1-1-0.dll ===
+  [0x18013B6A0] MultiByteToWideChar (Ordinal: None)
+  [0x18013B6A8] WideCharToMultiByte (Ordinal: None)
+  [0x18013B6B0] GetStringTypeW (Ordinal: None)
+  [0x18013B6B8] CompareStringW (Ordinal: None)
+
+=== api-ms-win-core-sysinfo-l1-2-0.dll ===
+  [0x18013B790] GetSystemFirmwareTable (Ordinal: None)
+
+=== api-ms-win-core-localization-l1-2-0.dll ===
+  [0x18013B4C8] FormatMessageA (Ordinal: None)
+  [0x18013B4D0] GetOEMCP (Ordinal: None)
+  [0x18013B4D8] GetLocaleInfoEx (Ordinal: None)
+  [0x18013B4E0] LCMapStringEx (Ordinal: None)
+  [0x18013B4E8] LCMapStringW (Ordinal: None)
+  [0x18013B4F0] GetACP (Ordinal: None)
+  [0x18013B4F8] GetCPInfo (Ordinal: None)
+  [0x18013B500] GetLocaleInfoA (Ordinal: None)
+  [0x18013B508] IsValidCodePage (Ordinal: None)
+  [0x18013B510] EnumSystemLocalesW (Ordinal: None)
+  [0x18013B518] GetUserDefaultLCID (Ordinal: None)
+  [0x18013B520] IsValidLocale (Ordinal: None)
+  [0x18013B528] GetLocaleInfoW (Ordinal: None)
+
+=== api-ms-win-core-file-l1-2-2.dll ===
+  [0x18013B3A0] AreFileApisANSI (Ordinal: None)
+  [0x18013B3A8] GetVolumeInformationA (Ordinal: None)
+
+=== bcrypt.dll ===
+  [0x18013B820] BCryptDestroyKey (Ordinal: None)
+  [0x18013B828] BCryptGenRandom (Ordinal: None)
+  [0x18013B830] BCryptOpenAlgorithmProvider (Ordinal: None)
+  [0x18013B838] BCryptImportKeyPair (Ordinal: None)
+  [0x18013B840] BCryptGetProperty (Ordinal: None)
+  [0x18013B848] BCryptCloseAlgorithmProvider (Ordinal: None)
+  [0x18013B850] BCryptCreateHash (Ordinal: None)
+  [0x18013B858] BCryptHashData (Ordinal: None)
+  [0x18013B860] BCryptVerifySignature (Ordinal: None)
+  [0x18013B868] BCryptDestroyHash (Ordinal: None)
+  [0x18013B870] BCryptFinishHash (Ordinal: None)
+
+=== IPHLPAPI.DLL ===
+  [0x18013B068] GetAdaptersInfo (Ordinal: None)
+
+=== WINHTTP.dll ===
+  [0x18013B1A8] WinHttpConnect (Ordinal: None)
+  [0x18013B1B0] WinHttpReadData (Ordinal: None)
+  [0x18013B1B8] WinHttpQueryDataAvailable (Ordinal: None)
+  [0x18013B1C0] WinHttpSetTimeouts (Ordinal: None)
+  [0x18013B1C8] WinHttpCloseHandle (Ordinal: None)
+  [0x18013B1D0] WinHttpSendRequest (Ordinal: None)
+  [0x18013B1D8] WinHttpReceiveResponse (Ordinal: None)
+  [0x18013B1E0] WinHttpQueryHeaders (Ordinal: None)
+  [0x18013B1E8] WinHttpOpen (Ordinal: None)
+  [0x18013B1F0] WinHttpSetOption (Ordinal: None)
+  [0x18013B1F8] WinHttpCrackUrl (Ordinal: None)
+  [0x18013B200] WinHttpOpenRequest (Ordinal: None)
+
+=== api-ms-win-core-synch-l1-1-0.dll ===
+  [0x18013B6E8] WaitForSingleObjectEx (Ordinal: None)
+  [0x18013B6F0] EnterCriticalSection (Ordinal: None)
+  [0x18013B6F8] ReleaseSRWLockExclusive (Ordinal: None)
+  [0x18013B700] LeaveCriticalSection (Ordinal: None)
+  [0x18013B708] DeleteCriticalSection (Ordinal: None)
+  [0x18013B710] CreateEventA (Ordinal: None)
+  [0x18013B718] TryAcquireSRWLockExclusive (Ordinal: None)
+  [0x18013B720] AcquireSRWLockExclusive (Ordinal: None)
+  [0x18013B728] InitializeCriticalSectionAndSpinCount (Ordinal: None)
+  [0x18013B730] WaitForSingleObject (Ordinal: None)
+  [0x18013B738] InitializeCriticalSectionEx (Ordinal: None)
+
+=== api-ms-win-core-heap-l2-1-0.dll ===
+  [0x18013B400] GlobalAlloc (Ordinal: None)
+  [0x18013B408] GlobalFree (Ordinal: None)
+  [0x18013B410] LocalFree (Ordinal: None)
+
+=== api-ms-win-core-com-l1-1-0.dll ===
+  [0x18013B210] CoUninitialize (Ordinal: None)
+  [0x18013B218] CoTaskMemFree (Ordinal: None)
+  [0x18013B220] CoCreateInstance (Ordinal: None)
+  [0x18013B228] PropVariantClear (Ordinal: None)
+  [0x18013B230] CoInitializeEx (Ordinal: None)
+
+=== MFPlat.DLL ===
+  [0x18013B128] MFStartup (Ordinal: None)
+  [0x18013B130] MFCreateAttributes (Ordinal: None)
+  [0x18013B138] MFCreateMediaType (Ordinal: None)
+  [0x18013B140] MFShutdown (Ordinal: None)
+
+=== MFReadWrite.dll ===
+  [0x18013B150] MFCreateSourceReaderFromURL (Ordinal: None)
+
+=== api-ms-win-core-processenvironment-l1-1-0.dll ===
+  [0x18013B568] GetCommandLineA (Ordinal: None)
+  [0x18013B570] ExpandEnvironmentStringsW (Ordinal: None)
+  [0x18013B578] GetCommandLineW (Ordinal: None)
+  [0x18013B580] SetEnvironmentVariableW (Ordinal: None)
+  [0x18013B588] GetEnvironmentStringsW (Ordinal: None)
+  [0x18013B590] FreeEnvironmentStringsW (Ordinal: None)
+  [0x18013B598] SetStdHandle (Ordinal: None)
+  [0x18013B5A0] GetStdHandle (Ordinal: None)
+
+=== api-ms-win-core-registry-l1-1-0.dll ===
+  [0x18013B648] RegQueryValueExW (Ordinal: None)
+  [0x18013B650] RegOpenKeyExW (Ordinal: None)
+  [0x18013B658] RegCloseKey (Ordinal: None)
+
+=== api-ms-win-core-file-l2-1-2.dll ===
+  [0x18013B3C8] CopyFileW (Ordinal: None)
+
+=== api-ms-win-core-file-l1-2-0.dll ===
+  [0x18013B390] GetTempPathW (Ordinal: None)
+
+=== d3d11.dll ===
+  [0x18013B880] CreateDirect3D11DeviceFromDXGIDevice (Ordinal: None)
+
+=== SHELL32.dll ===
+  [0x18013B188] SHCreateDirectoryExW (Ordinal: None)
+  [0x18013B190] ShellExecuteW (Ordinal: None)
+  [0x18013B198] SHGetFolderPathW (Ordinal: None)
+
+=== KERNEL32.dll ===
+  [0x18013B078] lstrcpynA (Ordinal: None)
+  [0x18013B080] Thread32Next (Ordinal: None)
+  [0x18013B088] Module32First (Ordinal: None)
+  [0x18013B090] Module32Next (Ordinal: None)
+  [0x18013B098] VirtualFree (Ordinal: None)
+  [0x18013B0A0] RaiseException (Ordinal: None)
+  [0x18013B0A8] Thread32First (Ordinal: None)
+  [0x18013B0B0] FlushInstructionCache (Ordinal: None)
+  [0x18013B0B8] SetThreadContext (Ordinal: None)
+  [0x18013B0C0] GetThreadContext (Ordinal: None)
+  [0x18013B0C8] ResumeThread (Ordinal: None)
+  [0x18013B0D0] SuspendThread (Ordinal: None)
+  [0x18013B0D8] OpenThread (Ordinal: None)
+  [0x18013B0E0] GetCurrentProcess (Ordinal: None)
+  [0x18013B0E8] HeapFree (Ordinal: None)
+  [0x18013B0F0] HeapReAlloc (Ordinal: None)
+  [0x18013B0F8] HeapAlloc (Ordinal: None)
+  [0x18013B100] HeapCreate (Ordinal: None)
+  [0x18013B108] LoadLibraryExA (Ordinal: None)
+  [0x18013B110] VirtualQuery (Ordinal: None)
+  [0x18013B118] GetSystemInfo (Ordinal: None)
+
+=== GDI32.dll ===
+  [0x18013B010] CreateCompatibleDC (Ordinal: None)
+  [0x18013B018] CreateFontW (Ordinal: None)
+  [0x18013B020] DeleteObject (Ordinal: None)
+  [0x18013B028] SetTextColor (Ordinal: None)
+  [0x18013B030] CreateSolidBrush (Ordinal: None)
+  [0x18013B038] GdiFlush (Ordinal: None)
+  [0x18013B040] CreateDIBSection (Ordinal: None)
+  [0x18013B048] SetBkMode (Ordinal: None)
+  [0x18013B050] SelectObject (Ordinal: None)
+  [0x18013B058] DeleteDC (Ordinal: None)
+
+=== COMDLG32.dll ===
+  [0x18013B000] GetOpenFileNameW (Ordinal: None)
+
+=== api-ms-win-core-file-l2-1-0.dll ===
+  [0x18013B3B8] GetFileInformationByHandleEx (Ordinal: None)
+
+=== api-ms-win-core-util-l1-1-0.dll ===
+  [0x18013B7D0] EncodePointer (Ordinal: None)
+  [0x18013B7D8] DecodePointer (Ordinal: None)
+
+=== api-ms-win-core-processthreads-l1-1-1.dll ===
+  [0x18013B620] IsProcessorFeaturePresent (Ordinal: None)
+
+=== api-ms-win-core-rtlsupport-l1-1-0.dll ===
+  [0x18013B668] RtlUnwindEx (Ordinal: None)
+  [0x18013B670] RtlPcToFileHeader (Ordinal: None)
+  [0x18013B678] RtlLookupFunctionEntry (Ordinal: None)
+  [0x18013B680] RtlVirtualUnwind (Ordinal: None)
+  [0x18013B688] RtlCaptureContext (Ordinal: None)
+  [0x18013B690] RtlUnwind (Ordinal: None)
+
+=== api-ms-win-core-interlocked-l1-1-0.dll ===
+  [0x18013B438] InitializeSListHead (Ordinal: None)
+  [0x18013B440] InterlockedPushEntrySList (Ordinal: None)
+  [0x18013B448] InterlockedFlushSList (Ordinal: None)
+
+=== api-ms-win-core-console-l1-1-0.dll ===
+  [0x18013B240] ReadConsoleW (Ordinal: None)
+  [0x18013B248] GetConsoleOutputCP (Ordinal: None)
+  [0x18013B250] WriteConsoleW (Ordinal: None)
+  [0x18013B258] GetConsoleMode (Ordinal: None)
+
+=== api-ms-win-core-fibers-l1-1-0.dll ===
+  [0x18013B2C0] FlsAlloc (Ordinal: None)
+  [0x18013B2C8] FlsGetValue (Ordinal: None)
+  [0x18013B2D0] FlsFree (Ordinal: None)
+  [0x18013B2D8] FlsSetValue (Ordinal: None)
+
+=== api-ms-win-core-datetime-l1-1-0.dll ===
+  [0x18013B268] GetTimeFormatW (Ordinal: None)
+  [0x18013B270] GetDateFormatW (Ordinal: None)
+
+=== api-ms-win-core-timezone-l1-1-0.dll ===
+  [0x18013B7A0] GetTimeZoneInformation (Ordinal: None)
+
+=== api-ms-win-core-heap-l1-1-0.dll ===
+  [0x18013B3E8] HeapSize (Ordinal: None)
+  [0x18013B3F0] GetProcessHeap (Ordinal: None)
+
+=== api-ms-win-core-winrt-error-l1-1-1.dll ===
+  [0x18013B7E8] RoOriginateLanguageException (Ordinal: None)
+
+=== OLEAUT32.dll ===
+  [0x18013B160] SetErrorInfo (Ordinal: 201)
+  [0x18013B168] SysStringLen (Ordinal: 7)
+  [0x18013B170] SysFreeString (Ordinal: 6)
+  [0x18013B178] GetErrorInfo (Ordinal: 200)

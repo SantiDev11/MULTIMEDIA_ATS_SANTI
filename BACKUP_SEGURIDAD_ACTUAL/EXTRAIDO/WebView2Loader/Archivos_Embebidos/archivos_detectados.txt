@@ -1,0 +1,4 @@
+Archivos embebidos detectados: 1
+============================================================
+
+  Offset 0x00004EA9: GZIP Compressed (.gz)

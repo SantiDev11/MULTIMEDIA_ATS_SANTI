@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LucidGFX Chat</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* Fundo escuro SÓLIDO: a captura PrintWindow rasteriza tudo como opaco, então
+   qualquer rgba translúcido vira branco. Cor sólida = legível no painel do caminhão. */
+/* --fs (escala de fonte do usuário) SÓ no :root. Se fosse definida em 'body'
+   também, o body sombraria o valor — o JS seta --fs no <html> (documentElement),
+   e as mensagens (dentro do body) leriam o do body, não o do html. Bug clássico. */
+:root { --fs: 1; }
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  background: #0c0e18;
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #e8eaf2;
+}
+
+/* Container responsivo: tudo escala com a largura da tela (vw) pra ficar bom
+   tanto em tela cheia (largo) quanto em split (estreito). */
+#root {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  background: linear-gradient(180deg, #11142200 0%, #0c0e18 8%);
+}
+
+/* Cabeçalho com plataforma + canal/status + controles.
+   IMPORTANTE: o chat renderiza em ~2× a resolução da tela (supersample), então tudo
+   aqui aparece ~metade do tamanho no painel. Os controles são propositalmente GRANDES
+   (touch-friendly) pra dar pra clicar com o cursor virtual (F8) no split. */
+#header {
+  flex-shrink: 0;
+  display: flex; align-items: center; gap: clamp(4px, 1.2vw, 10px);
+  padding: clamp(8px, 2vw, 18px) clamp(8px, 1.6vw, 16px);
+  background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.01));
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+#header .dot {
+  width: clamp(10px, 1.4vw, 16px); height: clamp(10px, 1.4vw, 16px);
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px currentColor;
+}
+#header .title {
+  font-size: clamp(14px, 3vw, 22px);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  min-width: 0; flex-shrink: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#header .live {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: clamp(9px, 1.4vw, 13px);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.55);
+  white-space: nowrap;
+}
+#header .live.on { background: rgba(229,57,53,0.85); color: #fff; }
+
+/* Lista de mensagens: cresce de baixo pra cima, scroll oculto */
+#list {
+  flex: 1;
+  display: flex; flex-direction: column;
+  justify-content: flex-end;
+  gap: clamp(3px, 0.7vw, 8px);
+  padding: clamp(6px, 1.4vw, 14px);
+  overflow: hidden;
+}
+
+/* Cada mensagem = bolha compacta só do tamanho do conteúdo */
+.msg {
+  align-self: flex-start;
+  max-width: 100%;
+  display: flex; align-items: baseline; flex-wrap: wrap;
+  gap: 0.6vw;
+  padding: clamp(4px, 0.9vw, 9px) clamp(7px, 1.3vw, 13px);
+  /* Fundo SÓLIDO escuro (não translúcido): mais contraste com o texto branco e imune
+     ao problema de rgba virar esbranquiçado na captura PrintWindow. */
+  background: #1b2030;
+  border-radius: clamp(8px, 1.4vw, 14px);
+  border-left: 3px solid var(--accent, #666);
+  line-height: 1.3;
+  /* Sombra dá "borda" ao texto → legível de longe na textura capturada da telinha. */
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  animation: msgIn 0.2s cubic-bezier(0.2,0.8,0.3,1);
+  word-break: break-word;
+}
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.msg.fading { opacity: 0; transition: opacity 0.6s ease; }
+
+/* Badge da plataforma (T/Y/TT) */
+.msg .badge {
+  flex-shrink: 0;
+  width: clamp(14px, 1.7vw, 20px); height: clamp(14px, 1.7vw, 20px);
+  border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: clamp(8px, 1vw, 12px); font-weight: 800;
+  color: #fff;
+  align-self: center;
+}
+.msg .user {
+  font-weight: 700;
+  /* base fixa × escala do usuário (--fs). Sem clamp/vw (que travava em 12px e
+     complicava o recálculo). Base 18px: o supersample (~2×) encolhe pela metade na
+     telinha, então 14px ficava pequeno demais de longe. --fs vai de 0.8 a 4.0. */
+  font-size: calc(18px * var(--fs));
+}
+.msg .body {
+  color: #ffffff;                    /* branco puro = contraste máximo */
+  font-weight: 600;                  /* mais encorpado → legível de longe */
+  font-size: calc(18px * var(--fs)); /* base 18px (ver .user) */
+}
+
+/* Controles do header (A-/A+/⌂/↩/✕). Grandes de propósito: alvo fácil pro cursor
+   virtual (F8) no split, onde o painel aparece em ~metade da resolução renderizada. */
+#fsctl {
+  display: flex; gap: clamp(4px, 1.2vw, 9px); flex-shrink: 0;
+}
+#fsctl button {
+  width: clamp(40px, 9vw, 60px); height: clamp(38px, 8.5vw, 56px);
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 8px;
+  color: #dbe3f2; font-weight: 700;
+  font-size: clamp(20px, 4.5vw, 30px); line-height: 1;
+  cursor: pointer; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+#fsctl button:active { background: rgba(255,255,255,0.28); }
+
+/* Estado vazio / conectando */
+#empty {
+  margin: auto;
+  text-align: center;
+  color: rgba(255,255,255,0.3);
+  font-size: clamp(11px, 1.5vw, 15px);
+  padding: 20px;
+}
+</style>
+</head>
+<body>
+
+<div id="root">
+  <div id="header">
+    <span class="dot" id="hdr-dot" style="color:#888;background:#888"></span>
+    <span class="title" id="hdr-title">Chat</span>
+    <span id="fsctl">
+      <button id="fs-dec" title="Diminuir fonte">A-</button>
+      <button id="fs-inc" title="Aumentar fonte">A+</button>
+      <button id="pane-home" title="Voltar aos apps">⌂</button>
+      <button id="chat-back" title="Trocar canal">↩</button>
+      <button id="chat-close" title="Fechar chat">✕</button>
+    </span>
+    <span class="live" id="hdr-live">offline</span>
+  </div>
+  <div id="list">
+    <div id="empty">conectando…</div>
+  </div>
+</div>
+
+<script>
+// chat.html?channel=NOME&demo=1&yt=1
+// Widget de chat puro (estilo Streamlabs/OBS browser source), navegado via file:///.
+// Twitch: IRC anônimo via WebSocket (sem conta, sem precisar estar em live).
+// YouTube: a DLL faz polling do innertube e empurra via window._lgfxChatPush(...).
+(function () {
+  var qs = new URLSearchParams(location.search);
+  var channel = (qs.get('channel') || '').trim().toLowerCase();
+  var demo = qs.get('demo') === '1';
+  var isYt = qs.get('yt') === '1';
+  // Cap de mensagens na tela. Não é "infinito" de propósito: o chat.html é capturado
+  // como textura a cada frame, e um DOM que só cresce (live longa/movimentada) derruba
+  // FPS e estoura RAM. 150 dá a sensação de "nunca some" sem pesar o jogo.
+  var maxMessages = 150;
+  // fadeAfterMs = 0 desliga o fade por tempo: mensagem só sai quando empurrada pelo cap
+  // (antes sumia sozinha após 40s, era o principal motivo do "o chat some").
+  var fadeAfterMs = 0;
+
+  var list = document.getElementById('list');
+  var emptyEl = document.getElementById('empty');
+  var hdrDot = document.getElementById('hdr-dot');
+  var hdrTitle = document.getElementById('hdr-title');
+  var hdrLive = document.getElementById('hdr-live');
+
+  var platMeta = {
+    twitch:  { color: '#9146ff', label: 'T',  name: 'Twitch'  },
+    youtube: { color: '#ff0000', label: 'Y',  name: 'YouTube' },
+    tiktok:  { color: '#25f4ee', label: 'TT', name: 'TikTok'  },
+    demo:    { color: '#8a8a8a', label: '•',  name: 'Demo'    }
+  };
+
+  // ---- Cor estável por nome de usuário (quando a plataforma não fornece cor) ----
+  // Hash simples do nome → matiz HSL. Mesma pessoa = mesma cor sempre, e cores vivas
+  // e legíveis (saturação/luminosidade fixas). Usado no YouTube (que manda cor vazia).
+  function colorForName(name) {
+    var h = 0;
+    for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    return 'hsl(' + (h % 360) + ', 70%, 68%)';
+  }
+
+  // ---- Tamanho de fonte ajustável (botões A-/A+, salvo em localStorage) ----
+  var fsLevels = [0.8, 0.9, 1.0, 1.15, 1.3, 1.5, 1.75, 2.0, 2.5, 3.0, 3.5, 4.0];
+  var fsIdx = 3;  // default 1.15× (antes 1.0): já começa maior; A-/A+ ajusta e persiste
+  try { var saved = parseInt(localStorage.getItem('lgfx_chat_fs'), 10); if (saved >= 0 && saved < fsLevels.length) fsIdx = saved; } catch (e) {}
+  function applyFs() {
+    document.documentElement.style.setProperty('--fs', fsLevels[fsIdx]);
+    try { localStorage.setItem('lgfx_chat_fs', String(fsIdx)); } catch (e) {}
+  }
+  applyFs();
+  function fsDec() { if (fsIdx > 0) { fsIdx--; applyFs(); } }
+  function fsInc() { if (fsIdx < fsLevels.length - 1) { fsIdx++; applyFs(); } }
+  // ✕ fechar: sai do split (volta a 1 WebView inteiro). ↩ voltar: fecha o split e
+  // reabre o menu de chat na home pra escolher outro canal. Ambos via lucidgfx://action
+  // interceptado pelo ChatWebView (que roteia pro MultimediaDisplay).
+  // Debounce: o clique injetado pela DLL + binds em click/pointerdown faziam a MESMA
+  // ação disparar dezenas de vezes, martelando navigate()+resize() na DLL e deixando a
+  // captura/WebView num estado preto irrecuperável. Guarda: 1 disparo por ~1.2s.
+  // Loading: overlay com spinner mostrado NA HORA do clique em voltar/home/fechar, pra
+  // dar feedback imediato enquanto a navegação (que demora) acontece. A página nova
+  // substitui tudo ao carregar. Fallback de 6s remove caso a nav não troque a página.
+  function showLoad() {
+    if (document.getElementById('_lgfx_load')) return;
+    var st = document.createElement('style');
+    st.textContent = '@keyframes _lgfxspin{to{transform:rotate(360deg)}}';
+    document.documentElement.appendChild(st);
+    var o = document.createElement('div');
+    o.id = '_lgfx_load';
+    o.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;'
+      + 'justify-content:center;background:rgba(8,10,24,0.92);';
+    var sp = document.createElement('div');
+    sp.style.cssText = 'width:clamp(36px,7vw,64px);height:clamp(36px,7vw,64px);'
+      + 'border:5px solid rgba(155,95,255,0.25);border-top-color:#9B5FFF;border-radius:50%;'
+      + 'animation:_lgfxspin 0.7s linear infinite;';
+    o.appendChild(sp);
+    document.documentElement.appendChild(o);
+    setTimeout(function(){ var el = document.getElementById('_lgfx_load'); if (el) el.remove(); }, 6000);
+  }
+
+  var _navGuard = 0;
+  function navAction(url) {
+    var now = Date.now();
+    if (now - _navGuard < 1200) return;
+    _navGuard = now;
+    showLoad();
+    window.location.href = url;
+  }
+  function chatClose() { navAction('lucidgfx://action/resethome'); }
+  function chatBack()  { navAction('lucidgfx://action/chatback'); }
+  function paneHome()  { navAction('lucidgfx://action/panehome'); }
+
+  // pointerdown além de click: o clique injetado pela DLL (elementFromPoint + dispatch)
+  // dispara pointerdown; cobre também mouse/touch nativos. Navegação tem _navGuard, então
+  // ouvir nos dois eventos é inofensivo (só dispara 1x por 1.2s).
+  ['click','pointerdown'].forEach(function (ev) {
+    document.getElementById('pane-home').addEventListener(ev, function (e) { e.preventDefault(); paneHome(); });
+    document.getElementById('chat-back').addEventListener(ev, function (e) { e.preventDefault(); chatBack(); });
+    document.getElementById('chat-close').addEventListener(ev, function (e) { e.preventDefault(); chatClose(); });
+  });
+  // A-/A+ (zoom da fonte): SÓ pointerdown, NÃO click. O clique injetado pela DLL dispara
+  // pointerdown E click (dispatchEvent + el.click()), então ouvir nos dois aplicava o zoom
+  // 2x por clique. Aqui não dá pra usar debounce por tempo como a navegação: o usuário
+  // clica em sequência rápida pra subir/descer vários níveis. pointerdown sai exatamente
+  // 1x por clique (injetado ou nativo/touch), então é 1 nível por clique, sem eco.
+  document.getElementById('fs-dec').addEventListener('pointerdown', function (e) { e.preventDefault(); fsDec(); });
+  document.getElementById('fs-inc').addEventListener('pointerdown', function (e) { e.preventDefault(); fsInc(); });
+
+  function setHeader(platform, titleText, liveOn) {
+    var m = platMeta[platform] || platMeta.demo;
+    hdrDot.style.background = m.color;
+    hdrDot.style.color = m.color;
+    hdrTitle.textContent = titleText;
+    hdrLive.textContent = liveOn ? 'ao vivo' : 'conectado';
+    hdrLive.classList.toggle('on', !!liveOn);
+  }
+
+  function addMessage(platform, user, color, body) {
+    // Chegou mensagem = conectado de fato: mata o "conectando"/watchdog.
+    _connected = true; _clearWatch();
+    if (emptyEl) { emptyEl.remove(); emptyEl = null; }
+    var m = platMeta[platform] || platMeta.demo;
+
+    // Cor do usuário: usa a fornecida pela plataforma (Twitch manda); se vazia
+    // (YouTube), gera uma cor estável a partir do nome para não ficar tudo igual.
+    var userColor = (color && color.trim()) ? color : colorForName(user || '?');
+
+    var el = document.createElement('div');
+    el.className = 'msg';
+    el.style.setProperty('--accent', userColor);
+
+    var badge = document.createElement('span');
+    badge.className = 'badge';
+    badge.style.background = m.color;
+    badge.textContent = m.label;
+    el.appendChild(badge);
+
+    var userEl = document.createElement('span');
+    userEl.className = 'user';
+    userEl.style.color = userColor;
+    userEl.textContent = user;
+    el.appendChild(userEl);
+
+    var bodyEl = document.createElement('span');
+    bodyEl.className = 'body';
+    bodyEl.textContent = body;
+    el.appendChild(bodyEl);
+
+    list.appendChild(el);
+
+    while (list.children.length > maxMessages) {
+      list.removeChild(list.firstChild);
+    }
+
+    // fadeAfterMs > 0 = mensagem some sozinha após esse tempo. 0 = nunca some por tempo
+    // (só sai pelo cap acima). Ver maxMessages/fadeAfterMs no topo.
+    if (fadeAfterMs > 0) {
+      setTimeout(function () {
+        el.classList.add('fading');
+        setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 700);
+      }, fadeAfterMs);
+    }
+  }
+
+  // ---- Estado da conexão: feedback visual em vez de "conectando…" pra sempre ----
+  // O C++ (YoutubeChatClient) chama window._lgfxChatStatus(state,msg) nos pontos de
+  // conexão/falha. Um watchdog local (15s) é o fallback caso NENHUM sinal chegue
+  // (ex: Twitch, ou push que não engatou) → nunca deixa o "conectando" travado.
+  var _connWatch = 0, _connected = false;
+  function _clearWatch() { if (_connWatch) { clearTimeout(_connWatch); _connWatch = 0; } }
+  function _armWatch() {
+    _clearWatch();
+    _connWatch = setTimeout(function () {
+      if (!_connected) _chatStatus('error', 'Não foi possível conectar. Verifique o canal ou a internet.');
+    }, 15000);
+  }
+  function _setEmpty(text, cls) {
+    if (!emptyEl) return;               // já há mensagens → não sobrescreve o chat
+    emptyEl.textContent = text;
+    emptyEl.style.color = (cls === 'err') ? '#ff8a8a' : (cls === 'warn') ? '#ffcf7a' : 'rgba(255,255,255,0.4)';
+  }
+  function _markConnected() {
+    _connected = true; _clearWatch();
+    _setEmpty('conectado · aguardando mensagens…', '');
+  }
+  function _chatStatus(state, msg) {
+    if (state === 'connected')       { _markConnected(); }
+    else if (state === 'connecting') { _connected = false; _setEmpty('conectando ao chat…', ''); _armWatch(); }
+    else if (state === 'offline')    { _clearWatch(); _setEmpty('📴 ' + (msg || 'Este canal não está ao vivo agora.'), 'warn'); hdrLive.textContent = 'offline'; hdrLive.classList.remove('on'); }
+    else if (state === 'not_found')  { _clearWatch(); _setEmpty('❌ ' + (msg || 'Canal não encontrado — confira o @.'), 'err'); hdrLive.textContent = 'erro'; hdrLive.classList.remove('on'); }
+    else                             { _clearWatch(); _setEmpty('⚠️ ' + (msg || 'Erro ao conectar ao chat.'), 'err'); hdrLive.textContent = 'erro'; hdrLive.classList.remove('on'); }
+  }
+  window._lgfxChatStatus = _chatStatus;
+
+  // ---- DEMO mode: injeta mensagens fake pra validar o widget sem live ----
+  function startDemo() {
+    setHeader('demo', 'Modo demonstração', false);
+    var demoUsers = [
+      { u: 'CaminhoneiroBR', c: '#64b5f6' },
+      { u: 'GFX_Fan99', c: '#81c784' },
+      { u: 'EstradaLivre', c: '#ffb74d' },
+      { u: 'ModsETS2', c: '#e57373' },
+      { u: 'ViajanteSC', c: '#ba68c8' }
+    ];
+    var demoMsgs = [
+      'kkkkk essa skin ta top',
+      'qual mapa é esse?',
+      'GG pela live!',
+      'consegue passar o link do mod?',
+      'gráficos ficaram top demais',
+      'boa noite gente',
+      'esse trecho de estrada é insano',
+      'alguem sabe o nome dessa musica?',
+      'que caminhão lindo 🚛',
+      '👍👍👍'
+    ];
+    var plats = ['twitch', 'youtube', 'tiktok'];
+    (function loop() {
+      var u = demoUsers[Math.floor(Math.random() * demoUsers.length)];
+      var msg = demoMsgs[Math.floor(Math.random() * demoMsgs.length)];
+      var p = plats[Math.floor(Math.random() * plats.length)];
+      addMessage(p, u.u, u.c, msg);
+      setTimeout(loop, 1400 + Math.random() * 1400);
+    })();
+  }
+
+  // ---- Twitch: IRC anônimo via WebSocket ----
+  function startTwitch(chan) {
+    if (!chan) { setHeader('twitch', 'Sem canal', false); return; }
+    setHeader('twitch', '#' + chan, false);
+    var ws;
+    var reconnectDelay = 2000;
+
+    function connect() {
+      ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
+
+      ws.onopen = function () {
+        var nick = 'justinfan' + Math.floor(10000 + Math.random() * 89999);
+        ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+        ws.send('PASS SCHMOOPIIE');
+        ws.send('NICK ' + nick);
+        ws.send('JOIN #' + chan);
+      };
+
+      ws.onmessage = function (ev) {
+        var lines = ev.data.split('\r\n');
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i];
+          if (!line) continue;
+
+          if (line.indexOf('PING') === 0) { ws.send('PONG :tmi.twitch.tv'); continue; }
+
+          if (line.indexOf('PRIVMSG') === -1) {
+            if (line.indexOf('376') !== -1 || line.indexOf('JOIN') !== -1) {
+              setHeader('twitch', '#' + chan, true);
+              _markConnected();   // conectado ao IRC → mata o watchdog / "conectando"
+            }
+            continue;
+          }
+
+          // @tags :user!user@user.tmi.twitch.tv PRIVMSG #canal :mensagem
+          var tags = {};
+          var rest = line;
+          if (line[0] === '@') {
+            var sp = line.indexOf(' ');
+            rest = line.substring(sp + 1);
+            line.substring(1, sp).split(';').forEach(function (kv) {
+              var idx = kv.indexOf('=');
+              if (idx > -1) tags[kv.substring(0, idx)] = kv.substring(idx + 1);
+            });
+          }
+
+          var userMatch = rest.match(/^:([^!]+)!/);
+          var msgMatch = rest.match(/PRIVMSG\s+#\w+\s+:(.*)$/);
+          if (!userMatch || !msgMatch) continue;
+
+          addMessage('twitch',
+            tags['display-name'] || userMatch[1],
+            tags['color'] || '#9cc4ff',
+            msgMatch[1]);
+        }
+      };
+
+      ws.onclose = function () { setHeader('twitch', '#' + chan, false); setTimeout(connect, reconnectDelay); };
+      ws.onerror = function () { try { ws.close(); } catch (e) {} };
+    }
+    connect();
+  }
+
+  if (demo) {
+    startDemo();
+  } else if (isYt) {
+    // YouTube: a DLL injeta as mensagens via _lgfxChatPush e o estado via _lgfxChatStatus.
+    setHeader('youtube', 'YouTube ao vivo', true);
+    _chatStatus('connecting');   // arma o watchdog; o C++ manda connected/offline/erro
+  } else if (channel) {
+    startTwitch(channel);
+    _chatStatus('connecting');   // arma o watchdog; conecta no 376/JOIN do IRC
+  } else {
+    setHeader('demo', 'Sem configuração', false);
+  }
+
+  // Ponto de extensão: a DLL (YouTube innertube / TikTok relay) chama isto.
+  window._lgfxChatPush = function (platform, user, color, body) {
+    addMessage(platform, user, color, body);
+  };
+
+  // ---- Batch push: coalesce N mensagens de um poll, drenando aos poucos ----
+  // Sob avalanche (canal grande = centenas de comentários/seg), o C++ manda o
+  // lote inteiro do poll de uma vez em vez de 1 executeScript por mensagem.
+  // Drenamos com CAP por tick: prioriza fluidez sobre completude — o chat nunca
+  // engasga, e o excesso que nem daria pra ler é descartado com elegância (só o
+  // cap final vira DOM, já que maxMessages=30 trimaria o resto de qualquer jeito).
+  //
+  // IMPORTANTE: usa setTimeout, NÃO requestAnimationFrame. O WebView é capturado
+  // off-screen (janela invisível); nesse estado o navegador SUSPENDE o rAF, então
+  // um drain via rAF nunca dispara e o chat congela (mensagens só empilham). O
+  // setTimeout continua rodando em background. ~33ms ≈ 30fps → ~360 msg/s.
+  var _batchQueue = [];
+  var _batchTimer = 0;
+  var kMaxPerTick = 12;    // no máximo 12 mensagens novas por tick
+  var kTickMs     = 33;    // ~30 ticks/s
+  var kMaxQueue   = 300;   // backlog máximo; acima disso descarta as MAIS ANTIGAS
+
+  function _drainBatch() {
+    _batchTimer = 0;
+    var n = Math.min(kMaxPerTick, _batchQueue.length);
+    for (var i = 0; i < n; i++) {
+      var msg = _batchQueue[i];
+      addMessage(msg[0], msg[1], msg[2], msg[3]);
+    }
+    _batchQueue = (_batchQueue.length > n) ? _batchQueue.slice(n) : [];
+    if (_batchQueue.length && !_batchTimer)
+      _batchTimer = setTimeout(_drainBatch, kTickMs);  // ainda tem backlog → próximo tick
+  }
+
+  // items = array de [platform, user, color, body]
+  window._lgfxChatPushBatch = function (items) {
+    if (!items || !items.length) return;
+    for (var i = 0; i < items.length; i++) _batchQueue.push(items[i]);
+    // Sob backlog extremo, larga as mais antigas (ninguém lê 300 msg atrasadas).
+    if (_batchQueue.length > kMaxQueue)
+      _batchQueue = _batchQueue.slice(_batchQueue.length - kMaxQueue);
+    if (!_batchTimer) _batchTimer = setTimeout(_drainBatch, 0);  // primeiro tick imediato
+  };
+})();
+</script>
+</body>
+</html>

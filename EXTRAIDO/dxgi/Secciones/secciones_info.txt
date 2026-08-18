@@ -1,0 +1,63 @@
+
+--- Seccion: .text ---
+  VirtualAddress: 0x00001000
+  VirtualSize: 0x001397D8 (1284056 bytes)
+  RawDataSize: 0x00139800 (1284096 bytes)
+  RawDataPointer: 0x00000400
+  Entropy: 6.4789
+  Characteristics: 0x60000020 (CODE, EXECUTE, READ)
+  [Datos extraidos: Secciones/_text.bin]
+
+--- Seccion: .rdata ---
+  VirtualAddress: 0x0013B000
+  VirtualSize: 0x000BDD90 (777616 bytes)
+  RawDataSize: 0x000BDE00 (777728 bytes)
+  RawDataPointer: 0x00139C00
+  Entropy: 6.8157
+  Characteristics: 0x40000040 (INITIALIZED_DATA, READ)
+  [Datos extraidos: Secciones/_rdata.bin]
+
+--- Seccion: .data ---
+  VirtualAddress: 0x001F9000
+  VirtualSize: 0x000081D0 (33232 bytes)
+  RawDataSize: 0x00003600 (13824 bytes)
+  RawDataPointer: 0x001F7A00
+  Entropy: 3.5695
+  Characteristics: 0xC0000040 (INITIALIZED_DATA, READ, WRITE)
+  [Datos extraidos: Secciones/_data.bin]
+
+--- Seccion: .pdata ---
+  VirtualAddress: 0x00202000
+  VirtualSize: 0x0000B700 (46848 bytes)
+  RawDataSize: 0x0000B800 (47104 bytes)
+  RawDataPointer: 0x001FB000
+  Entropy: 6.1513
+  Characteristics: 0x40000040 (INITIALIZED_DATA, READ)
+  [Datos extraidos: Secciones/_pdata.bin]
+
+--- Seccion: .fptable ---
+  VirtualAddress: 0x0020E000
+  VirtualSize: 0x00000100 (256 bytes)
+  RawDataSize: 0x00000200 (512 bytes)
+  RawDataPointer: 0x00206800
+  Entropy: 0.0000
+  Characteristics: 0xC0000040 (INITIALIZED_DATA, READ, WRITE)
+  [Datos extraidos: Secciones/_fptable.bin]
+
+--- Seccion: .rsrc ---
+  VirtualAddress: 0x0020F000
+  VirtualSize: 0x000001E0 (480 bytes)
+  RawDataSize: 0x00000200 (512 bytes)
+  RawDataPointer: 0x00206A00
+  Entropy: 4.7114
+  Characteristics: 0x40000040 (INITIALIZED_DATA, READ)
+  [Datos extraidos: Secciones/_rsrc.bin]
+
+--- Seccion: .reloc ---
+  VirtualAddress: 0x00210000
+  VirtualSize: 0x00000F00 (3840 bytes)
+  RawDataSize: 0x00001000 (4096 bytes)
+  RawDataPointer: 0x00206C00
+  Entropy: 5.3192
+  Characteristics: 0x42000040 (INITIALIZED_DATA, READ, DISCARDABLE)
+  [Datos extraidos: Secciones/_reloc.bin]

@@ -1,0 +1,353 @@
+ANALISIS COMPLETO DE ARCHIVOS DLL
+Fecha: 2026-08-16 10:38:00
+Archivos analizados: 2
+================================================================================
+
+
+
+################################################################################
+# DLL 1: dxgi.dll
+################################################################################
+
+================================================================================
+ANALISIS COMPLETO DE DLL
+================================================================================
+
+Fecha de analisis: 2026-08-16 10:38:00
+Archivo: dxgi.dll
+Ruta original: c:\Users\PC\Downloads\VIDEO\dxgi.dll
+Tamaño: 2,128,896 bytes (2079.00 KB)
+
+--- Hashes ---
+MD5:    3afe9c8e43b708d8f3d343cb2ffc28ee
+SHA1:   3650332800464e27c1ac0769949a2ad15b014e4a
+SHA256: 85933e9807b84955b994d699df80750f97d769404fe00e60178ea8bdb3d72e5d
+
+--- Tipo de archivo ---
+Arquitectura: x64 (AMD64)
+Formato PE: PE32+
+Es .NET: No
+
+
+================================================================================
+ELEMENTOS EXTRAIDOS EXITOSAMENTE
+================================================================================
+  [✓] Headers PE completos
+  [✓] Secciones PE (7 secciones)
+  [✓] Tabla de imports (50 DLLs)
+  [✓] Delayed imports (3 DLLs)
+  [✓] Tabla de exports (52 funciones)
+  [✓] Recursos PE (1 items)
+  [✓] Informacion de debug
+  [✓] Informacion TLS
+  [✓] Relocations (1780 entries)
+  [✓] Strings (29921 total)
+  [✓] Load Configuration
+  [✓] Exception handlers (3904)
+  [✓] Archivos embebidos detectados (29)
+
+
+================================================================================
+ELEMENTOS NO EXTRAIDOS / LIMITACIONES
+================================================================================
+  [✗] Version info: No disponible
+
+
+================================================================================
+LOG DETALLADO
+================================================================================
+
+Iniciando analisis de: dxgi.dll
+Ruta: c:\Users\PC\Downloads\VIDEO\dxgi.dll
+Salida: c:\Users\PC\Downloads\VIDEO\EXTRAIDO\dxgi
+[OK] Copia del archivo original creada: _COPIA_dxgi.dll
+
+================================================================================
+ANALISIS DE HEADERS PE
+================================================================================
+[OK] Headers PE extraidos -> Headers/pe_headers.txt
+
+================================================================================
+ANALISIS DE SECCIONES
+================================================================================
+  Seccion .text: 1284096 bytes, entropy=6.48
+  Seccion .rdata: 777728 bytes, entropy=6.82
+  Seccion .data: 13824 bytes, entropy=3.57
+  Seccion .pdata: 47104 bytes, entropy=6.15
+  Seccion .fptable: 512 bytes, entropy=0.00
+  Seccion .rsrc: 512 bytes, entropy=4.71
+  Seccion .reloc: 4096 bytes, entropy=5.32
+
+================================================================================
+ANALISIS DE IMPORTS (DEPENDENCIAS)
+================================================================================
+[OK] 50 DLLs importadas encontradas
+  - api-ms-win-core-winrt-l1-1-0.dll
+  - api-ms-win-core-file-l1-1-0.dll
+  - api-ms-win-core-handle-l1-1-0.dll
+  - api-ms-win-core-errorhandling-l1-1-0.dll
+  - api-ms-win-core-synch-l1-2-0.dll
+  - api-ms-win-core-processthreads-l1-1-0.dll
+  - api-ms-win-core-sysinfo-l1-1-0.dll
+  - api-ms-win-core-memory-l1-1-0.dll
+  - api-ms-win-core-libraryloader-l1-2-0.dll
+  - api-ms-win-core-heap-obsolete-l1-1-0.dll
+  - api-ms-win-core-string-obsolete-l1-1-1.dll
+  - api-ms-win-core-string-obsolete-l1-1-0.dll
+  - api-ms-win-core-toolhelp-l1-1-0.dll
+  - api-ms-win-core-libraryloader-l1-2-1.dll
+  - api-ms-win-core-debug-l1-1-0.dll
+  - api-ms-win-core-profile-l1-1-0.dll
+  - api-ms-win-mm-time-l1-1-0.dll
+  - api-ms-win-core-string-l1-1-0.dll
+  - api-ms-win-core-sysinfo-l1-2-0.dll
+  - api-ms-win-core-localization-l1-2-0.dll
+  - api-ms-win-core-file-l1-2-2.dll
+  - bcrypt.dll
+  - IPHLPAPI.DLL
+  - WINHTTP.dll
+  - api-ms-win-core-synch-l1-1-0.dll
+  - api-ms-win-core-heap-l2-1-0.dll
+  - api-ms-win-core-com-l1-1-0.dll
+  - MFPlat.DLL
+  - MFReadWrite.dll
+  - api-ms-win-core-processenvironment-l1-1-0.dll
+  - api-ms-win-core-registry-l1-1-0.dll
+  - api-ms-win-core-file-l2-1-2.dll
+  - api-ms-win-core-file-l1-2-0.dll
+  - d3d11.dll
+  - SHELL32.dll
+  - KERNEL32.dll
+  - GDI32.dll
+  - COMDLG32.dll
+  - api-ms-win-core-file-l2-1-0.dll
+  - api-ms-win-core-util-l1-1-0.dll
+  - api-ms-win-core-processthreads-l1-1-1.dll
+  - api-ms-win-core-rtlsupport-l1-1-0.dll
+  - api-ms-win-core-interlocked-l1-1-0.dll
+  - api-ms-win-core-console-l1-1-0.dll
+  - api-ms-win-core-fibers-l1-1-0.dll
+  - api-ms-win-core-datetime-l1-1-0.dll
+  - api-ms-win-core-timezone-l1-1-0.dll
+  - api-ms-win-core-heap-l1-1-0.dll
+  - api-ms-win-core-winrt-error-l1-1-1.dll
+  - OLEAUT32.dll
+[OK] 3 delayed imports encontrados
+
+================================================================================
+ANALISIS DE EXPORTS
+================================================================================
+[OK] 52 funciones exportadas encontradas
+
+================================================================================
+ANALISIS DE RECURSOS
+================================================================================
+
+  Tipo de recurso: MANIFEST (ID: 24)
+    [OK] Manifest extraido -> Configuracion/manifest_2.xml
+
+[OK] Total de recursos extraidos: 1
+
+================================================================================
+INFORMACION DE VERSION
+================================================================================
+[INFO] No se encontro informacion de version
+
+================================================================================
+INFORMACION DE DEBUG
+================================================================================
+[OK] Informacion de debug extraida
+[OK] Informacion TLS extraida
+[OK] 1780 relocations extraidas
+
+================================================================================
+EXTRACCION DE STRINGS
+================================================================================
+[OK] 28973 ASCII strings extraidas
+[OK] 948 Unicode strings unicas extraidas
+[OK] Load Configuration extraida
+[OK] 3904 exception handlers extraidos
+
+================================================================================
+BUSQUEDA DE ARCHIVOS EMBEBIDOS
+================================================================================
+[OK] 29 posibles archivos embebidos detectados
+
+================================================================================
+ANALISIS .NET
+================================================================================
+[INFO] La DLL NO es un assembly .NET administrado
+[INFO] Es una DLL nativa (C/C++)
+
+================================================================================
+RECONSTRUCCION DE ICONOS
+================================================================================
+[INFO] No se encontraron GROUP_ICON para reconstruir
+
+
+================================================================================
+HERRAMIENTAS RECOMENDADAS PARA ANALISIS ADICIONAL
+================================================================================
+  - IDA Pro / Ghidra: Desensamblado y analisis de codigo nativo
+  - x64dbg: Depuracion dinamica
+  - PE Explorer / CFF Explorer: Analisis PE avanzado
+  - Resource Hacker: Edicion de recursos PE
+  - Dependency Walker: Analisis de dependencias
+  - Detect It Easy (DiE): Deteccion de empaquetadores/protectores
+  - YARA: Deteccion basada en firmas
+
+################################################################################
+# DLL 2: WebView2Loader.dll
+################################################################################
+
+================================================================================
+ANALISIS COMPLETO DE DLL
+================================================================================
+
+Fecha de analisis: 2026-08-16 10:38:00
+Archivo: WebView2Loader.dll
+Ruta original: c:\Users\PC\Downloads\VIDEO\WebView2Loader.dll
+Tamaño: 159,320 bytes (155.59 KB)
+
+--- Hashes ---
+MD5:    877507761b66aa43ab5d9bf2445462b1
+SHA1:   9b6fc467ee1dfa906761e335c480fade687c3842
+SHA256: 1f278b330448cefccfbc2691fae525b9dfd47e4768f1286857e45ea0df07ff3f
+
+--- Tipo de archivo ---
+Arquitectura: x64 (AMD64)
+Formato PE: PE32+
+Es .NET: No
+
+
+================================================================================
+ELEMENTOS EXTRAIDOS EXITOSAMENTE
+================================================================================
+  [✓] Headers PE completos
+  [✓] Secciones PE (9 secciones)
+  [✓] Tabla de imports (1 DLLs)
+  [✓] Delayed imports (2 DLLs)
+  [✓] Tabla de exports (5 funciones)
+  [✓] Recursos PE (1 items)
+  [✓] Informacion de version
+  [✓] Informacion de debug
+  [✓] Informacion TLS
+  [✓] Relocations (814 entries)
+  [✓] Strings (2402 total)
+  [✓] Load Configuration
+  [✓] Exception handlers (439)
+  [✓] Archivos embebidos detectados (1)
+  [✓] Certificado digital
+
+
+================================================================================
+LOG DETALLADO
+================================================================================
+
+Iniciando analisis de: WebView2Loader.dll
+Ruta: c:\Users\PC\Downloads\VIDEO\WebView2Loader.dll
+Salida: c:\Users\PC\Downloads\VIDEO\EXTRAIDO\WebView2Loader
+[OK] Copia del archivo original creada: _COPIA_WebView2Loader.dll
+
+================================================================================
+ANALISIS DE HEADERS PE
+================================================================================
+[OK] Headers PE extraidos -> Headers/pe_headers.txt
+
+================================================================================
+ANALISIS DE SECCIONES
+================================================================================
+  Seccion .text: 87040 bytes, entropy=6.49
+  Seccion .rdata: 47104 bytes, entropy=4.83
+  Seccion .data: 3072 bytes, entropy=2.21
+  Seccion .pdata: 5632 bytes, entropy=4.91
+  Seccion .fptable: 512 bytes, entropy=0.00
+  Seccion .tls: 512 bytes, entropy=0.02
+  Seccion _RDATA: 512 bytes, entropy=4.18
+  Seccion .rsrc: 1536 bytes, entropy=3.21
+  Seccion .reloc: 2048 bytes, entropy=5.02
+
+================================================================================
+ANALISIS DE IMPORTS (DEPENDENCIAS)
+================================================================================
+[OK] 1 DLLs importadas encontradas
+  - KERNEL32.dll
+[OK] 2 delayed imports encontrados
+
+================================================================================
+ANALISIS DE EXPORTS
+================================================================================
+[OK] 5 funciones exportadas encontradas
+
+================================================================================
+ANALISIS DE RECURSOS
+================================================================================
+
+  Tipo de recurso: VERSION (ID: 16)
+    [OK] Version info extraida -> Version_Info/version_1.bin
+
+[OK] Total de recursos extraidos: 1
+
+================================================================================
+INFORMACION DE VERSION
+================================================================================
+  FileVersion: 1.0.3240.44
+  ProductVersion: 1.0.3240.44
+  CompanyName: Microsoft Corporation
+  FileDescription: Microsoft Edge Embedded Browser WebView Loader
+  FileVersion: 1.0.3240.44
+  InternalName: WebView2Loader.dll
+  LegalCopyright: Copyright Microsoft Corporation. All rights reserved.
+  OriginalFilename: WebView2Loader.dll
+  ProductName: Microsoft Edge Embedded Browser WebView Loader
+  ProductVersion: 1.0.3240.44
+  CompanyShortName: Microsoft
+  ProductShortName: Microsoft Edge Embedded Browser WebView Loader
+  LastChange: ddf4409a4f9cc7af1ee7633121869044ac4e8d9c
+  Official Build: 1
+
+================================================================================
+INFORMACION DE DEBUG
+================================================================================
+  PDB Path: WebView2Loader.dll.pdb
+  PDB GUID: F3188862-469D-B785-4C4C-44205044422E
+[OK] Informacion de debug extraida
+[OK] Informacion TLS extraida
+[OK] 814 relocations extraidas
+
+================================================================================
+EXTRACCION DE STRINGS
+================================================================================
+[OK] 1980 ASCII strings extraidas
+[OK] 422 Unicode strings unicas extraidas
+[OK] Load Configuration extraida
+[OK] 439 exception handlers extraidos
+
+================================================================================
+BUSQUEDA DE ARCHIVOS EMBEBIDOS
+================================================================================
+[OK] 1 posibles archivos embebidos detectados
+
+================================================================================
+ANALISIS .NET
+================================================================================
+[INFO] La DLL NO es un assembly .NET administrado
+[INFO] Es una DLL nativa (C/C++)
+
+================================================================================
+RECONSTRUCCION DE ICONOS
+================================================================================
+[INFO] No se encontraron GROUP_ICON para reconstruir
+[OK] Certificado digital extraido (10328 bytes)
+
+
+================================================================================
+HERRAMIENTAS RECOMENDADAS PARA ANALISIS ADICIONAL
+================================================================================
+  - IDA Pro / Ghidra: Desensamblado y analisis de codigo nativo
+  - x64dbg: Depuracion dinamica
+  - PE Explorer / CFF Explorer: Analisis PE avanzado
+  - Resource Hacker: Edicion de recursos PE
+  - Dependency Walker: Analisis de dependencias
+  - Detect It Easy (DiE): Deteccion de empaquetadores/protectores
+  - YARA: Deteccion basada en firmas

@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LucidGFX</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden; background: #0a0b18;
+}
+body {
+  display: grid;
+  grid-template-rows: 28px 1fr 22px;
+  background-image:
+    radial-gradient(ellipse 180% 100% at 50% -10%, rgba(25,35,110,0.75) 0%, transparent 55%),
+    radial-gradient(ellipse 120% 60% at 85% 110%, rgba(15,50,80,0.4) 0%, transparent 50%);
+  font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+  user-select: none; cursor: default; color: #fff;
+  /* Base de escala em px: o ZoomFactor do WebView2 escala px/em (NÃO escala vw).
+     Ícones e labels em 'em' relativos a isto → crescem junto com o texto no zoom. */
+  font-size: 16px;
+}
+
+#sb {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 12px;
+  background: rgba(0,0,0,0.55);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+#sb-time { font-size: 14px; font-weight: 700; color: #dde4ff; line-height: 1; }
+#sb-icons { display: flex; align-items: center; gap: 7px; opacity: 0.75; }
+#sb-icons svg { width: 14px; height: 14px; }
+
+/* Selo "Parceiro Oficial" — só aparece p/ parceiros (entitlement partner, vindo do C++).
+   Pílula dourada discreta no centro da barra de status. */
+#sb-partner {
+  font-size: 12px; font-weight: 800; letter-spacing: 0.3px;
+  color: #ffce54; white-space: nowrap;
+  background: rgba(255,206,84,0.14);
+  border: 1px solid rgba(255,206,84,0.45);
+  border-radius: 20px; padding: 2px 11px;
+  box-shadow: 0 0 10px rgba(255,206,84,0.15);
+}
+
+/* Boas-vindas (todos): banner central que aparece ao abrir e some sozinho. */
+#welcome {
+  position: fixed; top: 40%; left: 50%;
+  transform: translate(-50%,-50%) scale(0.96);
+  z-index: 300; pointer-events: none;
+  background: rgba(12,14,24,0.94);
+  border: 1px solid rgba(120,150,255,0.35);
+  border-radius: 14px; padding: 14px 24px;
+  font-size: 18px; font-weight: 600; color: #eaf0ff;
+  box-shadow: 0 10px 34px rgba(0,0,0,0.55);
+  opacity: 0; transition: opacity 0.45s ease, transform 0.45s ease;
+}
+#welcome b { color: #9db8ff; }
+#welcome.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+
+#grid {
+  display: grid;
+  /* auto-fit + minmax em 'em': no zoom os 'em' crescem, cabem menos colunas e os
+     ícones ficam maiores (reflowa em vez de estourar). max-width mantém ~4-5 colunas
+     em telas largas (Compacta). overflow-y rola se ainda não couber. */
+  grid-template-columns: repeat(auto-fit, minmax(5.6em, 1fr));
+  grid-auto-rows: min-content;
+  align-content: center; justify-items: stretch;
+  gap: 0.4em;
+  width: 100%; max-width: 30em; margin: 0 auto;
+  padding: 0.5em; overflow-y: auto;
+}
+
+.app {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0.4em; padding: 0.35em 0.15em; overflow: hidden; cursor: pointer;
+  border-radius: 0.6em;
+  transition: background 0.12s, transform 0.08s;
+  -webkit-tap-highlight-color: transparent;
+}
+.app:hover  { background: rgba(255,255,255,0.08); }
+.app:active { background: rgba(255,255,255,0.18); transform: scale(0.88); }
+
+.ic {
+  width: 3.2em; height: 3.2em;
+  border-radius: 24%;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; flex-shrink: 0;
+}
+.ic svg { width: 56%; height: 56%; display: block; }
+
+.lb {
+  font-size: 0.82em; font-weight: 500;
+  color: rgba(255,255,255,0.88); text-align: center;
+  line-height: 1.15; max-width: 100%;
+  /* quebra em até 2 linhas (antes: nowrap → "..." no zoom alto) */
+  white-space: normal; overflow-wrap: anywhere; word-break: break-word;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+}
+
+#dots {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  background: rgba(0,0,0,0.42);
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.22); }
+.dot.on { background: #5b9cf6; }
+
+/* Modo GPS - barra inferior fina */
+#gps-mode {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, #0d1117 0%, #161b22 100%);
+  z-index: 200;
+}
+#gps-mode.active { display: flex; }
+
+#gps-nav-bar {
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  width: 100%;
+  height: 100%;
+}
+
+.gps-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  /* Fundo sólido escuro (não gradiente azulado — o gradiente aparecia como uma
+     "borda azulada" ao redor do GPS tela cheia). */
+  background: #0d1117;
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: background 0.15s;
+  /* SEM transform: scaleY(10). O WebView já é reduzido a ~43px pelo C++ no split,
+     então height:100% preenche a faixa; o scaleY esticava o botão a ~430px e
+     transbordava o ícone/texto (ficavam cortados e deformados). */
+}
+.gps-nav-btn:hover {
+  /* Realce discreto (antes pintava a barra INTEIRA de verde ao passar o mouse). */
+  background: #161b22;
+}
+.gps-nav-btn:active { background: #1a2332; }
+.gps-nav-btn svg { width: 18px; height: 18px; }
+
+/* Modal de escolha Split/Fullscreen */
+#app-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+}
+#app-modal.show { display: flex !important; }
+
+/* Modal de Licença — mesmo overlay do app-modal */
+#lic-modal {
+  display: none;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  align-items: center; justify-content: center;
+}
+#lic-modal.show { display: flex !important; }
+
+/* Modal de Chat — mesmo overlay */
+#chat-modal {
+  display: none;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  align-items: center; justify-content: center;
+}
+#chat-modal.show { display: flex !important; }
+
+.modal-box {
+  background: linear-gradient(135deg, rgba(30,40,80,0.95), rgba(15,20,40,0.95));
+  border: 1px solid rgba(100,150,255,0.25);
+  border-radius: 18px;
+  padding: 24px;
+  width: min(280px, 92vw);
+  /* Limite de responsividade: o modal NUNCA passa da tela (vh/vw não são afetados
+     pelo ZoomFactor). Se o zoom deixar o conteúdo maior que isso, rola por dentro
+     em vez de sumir com o topo/rodapé (que era o bug na tela Compacta, baixa). */
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 0 60px rgba(80,120,255,0.15);
+}
+
+.modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 6px;
+}
+.modal-subtitle {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+.modal-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.modal-btn:hover {
+  background: rgba(100,150,255,0.2);
+  border-color: rgba(100,150,255,0.4);
+  transform: scale(1.02);
+}
+.modal-btn:active {
+  transform: scale(0.97);
+}
+/* Estado SELECIONADO (plataforma Twitch/YouTube e cards de layout) — realce claro
+   com borda de acento, fundo azul e glow, bem visível na tela escura do painel. */
+.modal-btn.selected {
+  background: rgba(100,150,255,0.26);
+  border-color: rgba(130,175,255,0.95);
+  box-shadow: 0 0 0 1.5px rgba(130,175,255,0.75), 0 4px 18px rgba(80,130,255,0.40);
+}
+.modal-btn.selected .modal-btn-label { color: #dbe7ff; }
+/* Check de selecionado no canto do card de layout */
+.modal-btn.chat-layout { position: relative; }
+.modal-btn.chat-layout.selected::after {
+  content: '\2713';
+  position: absolute; top: 6px; right: 8px;
+  font-size: 12px; font-weight: 700; color: #9cc2ff;
+}
+.modal-btn svg { width: 28px; height: 28px; flex-shrink: 0; }
+.modal-btn-text { text-align: left; }
+.modal-btn-label { display: block; font-weight: 600; }
+.modal-btn-desc { display: block; font-size: 10px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+
+/* Modal "Como deseja abrir?": opções LADO A LADO (ícone em cima, texto embaixo) — fica
+   melhor em tela widescreen. Escopado ao #app-modal p/ não afetar os modais de licença/chat.
+   EXCEÇÃO: no modo GPS celular (tela retrato, estreita), empilha uma embaixo da outra, que
+   cabe melhor — via @media (orientation: portrait), abaixo. */
+#app-modal .modal-box { width: min(460px, 94vw); }
+.app-choices { display: flex; gap: 10px; }
+.app-choices .modal-btn {
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  margin-bottom: 0;
+}
+.app-choices .modal-btn .modal-btn-text { text-align: center; }
+.app-choices .modal-btn svg { width: 32px; height: 32px; }
+
+@media (orientation: portrait) {
+  #app-modal .modal-box { width: min(280px, 92vw); }
+  .app-choices { flex-direction: column; gap: 0; }
+  .app-choices .modal-btn {
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .app-choices .modal-btn .modal-btn-text { text-align: left; }
+  .app-choices .modal-btn svg { width: 28px; height: 28px; }
+}
+
+/* Modal do Chat: 2 colunas no widescreen (esquerda = plataforma + canal, direita = layout),
+   ações lado a lado embaixo. No GPS celular (retrato) empilha tudo numa coluna só. gap cuida
+   do espaçamento em ambas as orientações (funciona igual em row e column). */
+#chat-modal .modal-box { width: min(560px, 94vw); }
+.chat-cols { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+.chat-cols .chat-col { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.chat-plat-row { display: flex; gap: 8px; }
+#chat-modal .chat-layout-row { display: flex; gap: 8px; flex-direction: column; }
+/* Ações (Abrir Chat / Testar demo) empilhadas dentro da coluna esquerda, abaixo do canal. */
+.chat-actions { display: flex; flex-direction: column; gap: 8px; }
+.chat-actions .modal-btn { margin-bottom: 0; }
+
+/* Cores tema das plataformas no seletor de chat (fundo sempre visível pela identidade;
+   selecionado = cor mais forte + ring branco). Via ID p/ vencer o .modal-btn.selected azul
+   genérico (ID tem especificidade maior que 2 classes). */
+#chat-plat-twitch  { background: rgba(145,70,255,0.28); border-color: rgba(145,70,255,0.55); }
+#chat-plat-youtube { background: rgba(255,45,45,0.24);  border-color: rgba(255,70,70,0.5); }
+#chat-plat-twitch.selected {
+  background: rgba(145,70,255,0.5); border-color: #b98cff;
+  box-shadow: 0 0 0 1.5px rgba(255,255,255,0.55), 0 4px 18px rgba(145,70,255,0.5);
+}
+#chat-plat-youtube.selected {
+  background: rgba(255,45,45,0.46); border-color: #ff8a8a;
+  box-shadow: 0 0 0 1.5px rgba(255,255,255,0.55), 0 4px 18px rgba(255,45,45,0.5);
+}
+#chat-plat-twitch svg, #chat-plat-youtube svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+@media (orientation: portrait) {
+  #chat-modal .modal-box { width: min(280px, 92vw); }
+  .chat-cols { flex-direction: column; }
+  #chat-modal .chat-layout-row { flex-direction: row; }
+}
+
+.modal-cancel {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.modal-cancel:hover { color: rgba(255,255,255,0.7); }
+
+/* App travado pelo plano (entitlement off + enforcement on). Trava REAL é nativa (C++);
+   isto é só a UX. */
+.app.locked { opacity: 0.42; filter: grayscale(0.85); }
+.app.locked .lb::after { content: ' 🔒'; filter: grayscale(0); }
+
+/* Toast de "recurso do plano superior" */
+#feat-toast {
+  position: fixed; left: 50%; bottom: 42px; transform: translateX(-50%);
+  background: rgba(20,24,40,0.96); color: #e8eaf2;
+  border: 1px solid rgba(120,150,255,0.35);
+  padding: 12px 18px; border-radius: 12px;
+  font-size: 14px; max-width: 82%; text-align: center;
+  z-index: 999; opacity: 0; transition: opacity 0.25s; pointer-events: none;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+}
+#feat-toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="sb">
+  <span id="sb-time">--:--</span>
+  <span id="sb-partner" style="display:none;">⭐ Parceiro Oficial</span>
+  <div id="sb-icons">
+    <svg viewBox="0 0 24 24" fill="#64b5f6"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71-4.3-4.29 4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z"/></svg>
+    <svg viewBox="0 0 24 24" fill="#81c784"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3a4.237 4.237 0 00-6 0zm-4-4l2 2a7.074 7.074 0 0110 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+    <svg viewBox="0 0 24 24" fill="#ffca28"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+  </div>
+</div>
+
+<!-- Boas-vindas (qualquer usuário) — aparece 1x por sessão ao abrir a multimídia -->
+<div id="welcome">👋 Bem-vindo à <b>GFXMods</b></div>
+
+<!-- Aviso de atualização — pílula no topo, aparece quando o servidor sinaliza update. Clicável:
+     abre o dashboard no navegador. Cor definida no _lgfxOnLicense (vermelho obrig. / amarelo opc.) -->
+<div id="update-notice" onclick="openUpdate()" style="display:none;position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:50;padding:6px 14px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);">⚠️ <span id="un-text">Nova versão disponível</span></div>
+
+<div id="grid">
+
+  <div class="app" id="app-gps" onclick="gpsClick()">
+    <div class="ic" style="background:linear-gradient(145deg,#4285f4,#1a56db)">
+      <svg viewBox="0 0 24 24" fill="white"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+    </div>
+    <div class="lb">GPS</div>
+  </div>
+
+  <div class="app" id="app-spotify" data-feat="spotify" onclick="go('https://open.spotify.com','Spotify','spotify')">
+    <div class="ic" style="background:linear-gradient(145deg,#1ed760,#0d9e40)">
+      <svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 14.36c-.2.32-.56.44-.88.24-2.4-1.48-5.44-1.8-9.04-.96-.36.08-.72-.16-.8-.52s.16-.72.52-.8c3.92-.88 7.32-.52 10.04 1.12.32.2.44.6.16.92zm1.2-2.76c-.24.4-.72.52-1.12.28-2.76-1.68-6.96-2.16-10.2-1.2-.44.12-.88-.12-1-.56-.12-.44.12-.88.56-1 3.68-1.08 8.28-.56 11.44 1.4.4.24.52.72.32 1.08zm.12-2.84c-3.32-1.96-8.8-2.16-11.96-1.2-.52.16-1.04-.12-1.2-.64-.16-.52.12-1.04.64-1.2 3.64-1.08 9.68-.88 13.48 1.36.48.28.64.88.36 1.36-.28.48-.88.64-1.32.32z"/></svg>
+    </div>
+    <div class="lb">Spotify</div>
+  </div>
+
+  <div class="app" id="app-youtube" data-feat="youtube" onclick="go('https://m.youtube.com','YouTube','youtube')">
+    <div class="ic" style="background:linear-gradient(145deg,#ff1744,#b71c1c)">
+      <svg viewBox="0 0 90 63" fill="white"><path d="M88.2 9.9C87.1 5.9 83.9 2.7 79.9 1.6 73 0 45 0 45 0S17 0 10.1 1.6C6.1 2.7 2.9 5.9 1.8 9.9 0 16.8 0 31.5 0 31.5s0 14.7 1.8 21.6c1.1 4 4.3 7.2 8.3 8.3C17 63 45 63 45 63s28 0 34.9-1.6c4-1.1 7.2-4.3 8.3-8.3C90 46.2 90 31.5 90 31.5s0-14.7-1.8-21.6zM36 45V18l24 13.5L36 45z"/></svg>
+    </div>
+    <div class="lb">YouTube</div>
+  </div>
+
+<div class="app" id="app-twitch" data-feat="twitch" onclick="go('https://m.twitch.tv','Twitch','twitch')">
+    <div class="ic" style="background:linear-gradient(145deg,#9146ff,#4a148c)">
+      <svg viewBox="0 0 24 28" fill="white"><path d="M2 0L0 4v20h6v4h4l4-4h6l6-6V0H2zm20 17l-4 4h-6l-4 4v-4H4V2h18v15zm-4-9h-2v6h2V8zm-6 0H10v6h2V8z"/></svg>
+    </div>
+    <div class="lb">Twitch</div>
+  </div>
+
+  <!-- Netflix removida da telinha (2026-07-18): desde o Chromium 150 o video EME vai pra um
+       overlay DirectComposition que o PrintWindow nao captura -> retangulo preto. NAO e proteca
+       de DRM (toca em Widevine L3 software); e limitacao do metodo de captura por GDI. Pinar
+       runtime antigo nao e viavel (per-arquitetura, ~250MB, so 2 majors no site, seguranca).
+       Caminho futuro p/ trazer de volta: migrar a captura de PrintWindow pra WebView2
+       composition-controller (le a arvore DComp, pega o overlay). O entitlement 'netflix' segue
+       no backend; so o card foi tirado. -->
+
+  <div class="app" id="app-chat" data-feat="chat" onclick="openChat()">
+    <div class="ic" style="background:linear-gradient(145deg,#9146ff,#4a148c)">
+      <svg viewBox="0 0 24 24" fill="white"><path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h4c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+    </div>
+    <div class="lb">Chat</div>
+  </div>
+
+  <!-- Licença movida para o overlay do PgUp (aba "Licença"). Não fica mais na multimídia. -->
+
+</div>
+
+<div id="dots">
+  <div class="dot on"></div>
+  <div class="dot"></div>
+  <div class="dot"></div>
+</div>
+
+<!-- Modo GPS (barra inferior com botão HOME) -->
+<div id="gps-mode">
+  <div id="gps-nav-bar">
+    <button class="gps-nav-btn" onclick="exitGpsMode()">
+      <svg viewBox="0 0 24 24" fill="white"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      <span>HOME</span>
+    </button>
+  </div>
+</div>
+
+<!-- Modal de escolha Split/Fullscreen -->
+<div id="app-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-app-name">Abrir App</div>
+    <div class="modal-subtitle">Como deseja abrir?</div>
+
+    <div class="app-choices">
+      <button class="modal-btn" onclick="launchApp(false)">
+        <svg viewBox="0 0 24 24" fill="#64b5f6"><path d="M3 5v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2zm16 14H5V5h14v14z"/></svg>
+        <div class="modal-btn-text">
+          <span class="modal-btn-label">Tela Cheia</span>
+          <span class="modal-btn-desc">Abre o app ocupando toda a tela</span>
+        </div>
+      </button>
+
+      <button class="modal-btn" onclick="launchApp(true)">
+        <svg viewBox="0 0 24 24" fill="#81c784"><path d="M3 5v14a2 2 0 002 2h6V3H5a2 2 0 00-2 2zm16-2h-6v18h6a2 2 0 002-2V5a2 2 0 00-2-2z"/></svg>
+        <div class="modal-btn-text">
+          <span class="modal-btn-label">Split Screen</span>
+          <span class="modal-btn-desc">Divide com o GPS do jogo ao lado</span>
+        </div>
+      </button>
+    </div>
+
+    <button class="modal-cancel" onclick="closeModal()">Cancelar</button>
+  </div>
+</div>
+
+<!-- Modal de Licença -->
+<div id="lic-modal">
+  <div class="modal-box">
+    <div class="modal-title">Licença LucidGFX</div>
+    <div class="modal-subtitle" id="lic-status">Verificando...</div>
+
+    <div id="lic-info" style="display:none;margin-bottom:14px;font-size:11px;color:rgba(255,255,255,0.6);line-height:1.6">
+      <div>Chave: <span id="lic-masked" style="color:#9cc4ff">—</span></div>
+      <div>Edição: <span id="lic-edition" style="color:#9cc4ff">—</span></div>
+      <div>Dias restantes: <span id="lic-days" style="color:#9cc4ff">—</span></div>
+    </div>
+
+    <input id="lic-key" type="text" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off"
+      style="width:100%;padding:12px;margin-bottom:10px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#fff;font-size:14px;letter-spacing:1px;text-align:center;box-sizing:border-box">
+
+    <button class="modal-btn" id="lic-activate-btn" onclick="activateLicense()" style="justify-content:center">
+      <span class="modal-btn-label">Ativar Licença</span>
+    </button>
+
+    <div id="lic-hwid" style="font-size:9px;color:rgba(255,255,255,0.3);text-align:center;margin-top:6px;word-break:break-all">HWID: —</div>
+
+    <button class="modal-cancel" onclick="closeLicense()">Fechar</button>
+  </div>
+</div>
+
+<!-- Modal de Chat (widget estilo Streamlabs/OBS, só chat, sem player) -->
+<div id="chat-modal">
+  <div class="modal-box">
+    <div class="modal-title">Chat</div>
+    <div class="modal-subtitle">Widget de chat da sua live. Fica ligado ao seu canal, sem precisar colar link.</div>
+
+    <div class="chat-cols">
+      <!-- Coluna esquerda: plataforma + canal -->
+      <div class="chat-col">
+        <div class="chat-plat-row">
+          <button class="modal-btn" id="chat-plat-twitch" onclick="setChatPlatform('twitch')" style="justify-content:center;flex:1">
+            <svg viewBox="0 0 24 24" fill="#fff"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/></svg>
+            <span class="modal-btn-label">Twitch</span>
+          </button>
+          <button class="modal-btn" id="chat-plat-youtube" onclick="setChatPlatform('youtube')" style="justify-content:center;flex:1">
+            <svg viewBox="0 0 24 24" fill="#fff"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+            <span class="modal-btn-label">YouTube</span>
+          </button>
+        </div>
+        <input id="chat-channel" type="text" placeholder="seu_canal" autocomplete="off"
+          style="width:100%;padding:12px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#fff;font-size:14px;text-align:center;box-sizing:border-box">
+
+        <div class="chat-actions">
+          <button class="modal-btn" id="chat-open-btn" onclick="openChatChannel()" style="justify-content:center">
+            <span class="modal-btn-label">Abrir Chat</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Coluna direita: layout (tela cheia ou dividido com o GPS do jogo) -->
+      <div class="chat-col">
+        <div class="chat-layout-row">
+          <button class="modal-btn chat-layout" id="chat-layout-full" onclick="setChatLayout('full')" style="justify-content:center;flex:1;flex-direction:column;gap:4px;padding:10px">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="#64b5f6"><path d="M3 5v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2zm16 14H5V5h14v14z"/></svg>
+            <span class="modal-btn-label" style="font-size:12px">Tela cheia</span>
+          </button>
+          <button class="modal-btn chat-layout" id="chat-layout-split" onclick="setChatLayout('split')" style="justify-content:center;flex:1;flex-direction:column;gap:4px;padding:10px">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="#81c784"><path d="M3 5v14a2 2 0 002 2h6V3H5a2 2 0 00-2 2zm16-2h-6v18h6a2 2 0 002-2V5a2 2 0 00-2-2z"/></svg>
+            <span class="modal-btn-label" style="font-size:12px">Split + Apps</span>
+            <span style="font-size:9px;color:rgba(255,255,255,0.5)">chat + apps ao lado</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <button class="modal-cancel" onclick="closeChat()">Cancelar</button>
+  </div>
+</div>
+
+<div id="feat-toast"></div>
+
+<script>
+var pendingUrl = null;
+var pendingName = null;
+
+// Loading: overlay com spinner mostrado NA HORA que abre um app / navega, pra dar
+// feedback imediato enquanto o WebView carrega a página (que demora — YouTube etc).
+// A página nova substitui tudo ao carregar. Fallback de 8s remove se algo travar.
+function showLoad() {
+  if (document.getElementById('_lgfx_load')) return;
+  var st = document.createElement('style');
+  st.textContent = '@keyframes _lgfxspin{to{transform:rotate(360deg)}}';
+  document.documentElement.appendChild(st);
+  var o = document.createElement('div');
+  o.id = '_lgfx_load';
+  o.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;'
+    + 'justify-content:center;background:rgba(8,10,24,0.94);';
+  var sp = document.createElement('div');
+  sp.style.cssText = 'width:clamp(36px,7vw,64px);height:clamp(36px,7vw,64px);'
+    + 'border:5px solid rgba(155,95,255,0.25);border-top-color:#9B5FFF;border-radius:50%;'
+    + 'animation:_lgfxspin 0.7s linear infinite;';
+  o.appendChild(sp);
+  document.documentElement.appendChild(o);
+  setTimeout(function(){ var el = document.getElementById('_lgfx_load'); if (el) el.remove(); }, 8000);
+}
+
+// ---- Gating por plano (entitlements vindos do C++ via _lgfxOnLicense) ----
+// A trava REAL é nativa (o C++ cancela a navegação/ação); aqui é só a UX: escurece os
+// cards travados e mostra um aviso ao clicar. s.entitlements.enforced=false (dev) => nada trava.
+var _entitlements = null;
+function isFeatLocked(feat) {
+  return !!(_entitlements && _entitlements.enforced && !_entitlements[feat]);
+}
+function applyEntitlementLocks() {
+  var cards = document.querySelectorAll('.app[data-feat]');
+  for (var i = 0; i < cards.length; i++) {
+    cards[i].classList.toggle('locked', isFeatLocked(cards[i].getAttribute('data-feat')));
+  }
+}
+var _toastTimer = null;
+function showFeatToast(msg) {
+  var t = document.getElementById('feat-toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function() { t.classList.remove('show'); }, 3200);
+}
+// Retorna true (e mostra aviso) se a feature está travada pelo plano.
+function featBlocked(feat, name) {
+  if (!isFeatLocked(feat)) return false;
+  showFeatToast('🔒 ' + name + ' faz parte de um plano superior. Faça upgrade para desbloquear.');
+  return true;
+}
+
+// Modo painel: a home está rodando DENTRO do split.html (?pane=1). Nesse modo,
+// abrir um app navega o próprio iframe (sem modal de split), e o app "Chat" some
+// (evita split-dentro-de-split). O chat já está no painel ao lado.
+var PANE_MODE = new URLSearchParams(location.search).get('pane') === '1';
+
+console.log('[LUCID] Script carregado, viewport: ' + window.innerWidth + 'x' + window.innerHeight + ' pane=' + PANE_MODE);
+
+// Relógio do painel: horário do JOGO (via plugin de telemetria SCS, lido pela
+// dxgi.dll) quando disponível; senão relógio do PC. O C++ (TelemetryTime) chama
+// _lgfxSetGameTime a cada minuto in-game + keep-alive. Se parar de chegar por
+// >12s (plugin ausente/menu longo/game fechado), volta pro relógio do PC.
+var _gameTimeStr = null, _gameTimeAt = 0;
+window._lgfxSetGameTime = function(hhmm) { _gameTimeStr = hhmm; _gameTimeAt = Date.now(); paintTime(); };
+window._lgfxClearGameTime = function() { _gameTimeStr = null; paintTime(); };
+function paintTime() {
+  var el = document.getElementById('sb-time');
+  if (!el) return;
+  if (_gameTimeStr && (Date.now() - _gameTimeAt) < 12000) { el.textContent = _gameTimeStr; return; }
+  var d = new Date();
+  el.textContent = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+paintTime();
+setInterval(paintTime, 2000);
+
+// Abre o modal de escolha (Tela cheia/Split) — OU, em modo painel, abre direto no iframe.
+function go(url, name, feat) {
+  console.log('[LUCID] go() chamada: ' + url);
+  // Trava por plano (defesa de UX; a trava real é nativa no C++).
+  if (feat && featBlocked(feat, name || feat)) return;
+  // Em modo painel (dentro do split), o app abre no próprio iframe. O chat do lado
+  // fica intacto. Sem modal — já estamos em split.
+  if (PANE_MODE) {
+    showLoad();
+    window.location.href = url;
+    return;
+  }
+  pendingUrl = url;
+  pendingName = name || url.replace(/^https?:\/\//, '').split('/')[0];
+  document.getElementById('modal-app-name').textContent = pendingName;
+  document.getElementById('app-modal').classList.add('show');
+  console.log('[LUCID] Modal aberto');
+}
+
+// Fecha o modal
+function closeModal() {
+  document.getElementById('app-modal').classList.remove('show');
+  pendingUrl = null;
+  pendingName = null;
+}
+
+// Lança o app com ou sem split
+function launchApp(useSplit) {
+  if (!pendingUrl) return;
+  
+  // Enviar configuração de split para o C++
+  // ratio=50 (50% GPS, 50% browser), gpsOnLeft=1, gpsHash=0 (própria tela)
+  var splitEnabled = useSplit ? 1 : 0;
+  var f = document.createElement('iframe');
+  f.style.display = 'none';
+  f.src = 'lucidgfx://action/split/' + splitEnabled + '/1/50/0';
+  document.body.appendChild(f);
+  
+  // Navegar após pequeno delay para garantir que o split foi configurado
+  var url = pendingUrl;
+  showLoad();  // feedback imediato ao escolher Tela cheia/Split
+  setTimeout(function() {
+    f.remove();
+    window.location.href = url;
+  }, 50);
+
+  closeModal();
+}
+
+// Ponto de entrada do banco de calibracao — chamado pelo DLL quando detecta o RT.
+// Nao faz nada neste layout (fullscreen), mas evita erros se o DLL injetar.
+window._lgfxSetWindow = function(yStart, yEnd) {};
+
+// Modo painel (dentro do split): esconder apps que não fazem sentido aqui.
+// - Chat: já está no painel ao lado (evita split-dentro-de-split).
+// - GPS: usa split-shader do jogo (não funciona dentro de iframe).
+if (PANE_MODE) {
+  // Esconde só o Chat (já está no painel ao lado). O GPS FICA visível — no pane
+  // ele dispara splitchatgps (mostra o GPS do jogo no painel, chat intacto).
+  var hideChat = document.getElementById('app-chat');
+  if (hideChat) hideChat.style.display = 'none';
+}
+
+// GPS: no modo pane (split com chat) abre o GPS do jogo NO PAINEL (chat continua);
+// fora do split, modo GPS normal (tela cheia + barra).
+function gpsClick() {
+  if (PANE_MODE) sendAction('splitchatgps');
+  else showGps();
+}
+
+// Mostra o GPS do jogo (barra inferior, GPS 92%)
+function showGps() {
+  console.log('[LUCID] showGps() - split vertical');
+  
+  // Esconder tudo
+  document.getElementById('grid').style.display = 'none';
+  document.getElementById('sb').style.display = 'none';
+  document.getElementById('dots').style.display = 'none';
+  
+  // Fundo para a barra inferior
+  document.body.style.background = '#161b22';
+  document.body.style.backgroundImage = 'none';
+  
+  // Mostrar botão
+  document.getElementById('gps-mode').classList.add('active');
+  
+  // Split vertical: GPS em cima (92%), barra embaixo (8%)
+  // Formato: enabled/gpsTop/ratio/hash/vertical
+  var f = document.createElement('iframe');
+  f.style.display = 'none';
+  f.src = 'lucidgfx://action/split/1/1/92/0/1';
+  document.body.appendChild(f);
+  setTimeout(function() { f.remove(); }, 100);
+}
+
+// Sai do modo GPS e volta para Home
+function exitGpsMode() {
+  console.log('[LUCID] exitGpsMode() - enviando action/resethome');
+  // Esconde o #gps-mode NA HORA: senão o botão HOME (agora em tamanho normal, mas o
+  // WebView ainda está grande enquanto a home recarrega) fica ocupando a tela inteira
+  // como uma tela "🏠 HOME" gigante até a home nova carregar.
+  var g = document.getElementById('gps-mode');
+  if (g) g.classList.remove('active');
+  showLoad();  // spinner cobre o gap até a home carregar
+  // Usar action especial que desativa split e força reload
+  window.location.href = 'lucidgfx://action/resethome';
+}
+
+// Volta para Home (desativa split e recarrega)
+function goHome() {
+  console.log('[LUCID] goHome() - enviando action/resethome');
+  window.location.href = 'lucidgfx://action/resethome';
+}
+
+// Minimiza o jogo (Alt+Tab)
+function doAltTab() {
+  console.log('[LUCID] doAltTab() - minimizando jogo');
+  window.location.href = 'lucidgfx://action/alttab';
+}
+
+// ---- Licença ----
+// Envia uma action sem navegar (via iframe oculto), para não sair da home.
+function sendAction(path) {
+  var f = document.createElement('iframe');
+  f.style.display = 'none';
+  f.src = 'lucidgfx://action/' + path;
+  document.body.appendChild(f);
+  setTimeout(function() { f.remove(); }, 100);
+}
+
+function openLicense() {
+  document.getElementById('lic-modal').classList.add('show');
+  sendAction('licensequery');   // o DLL responde via window._lgfxOnLicense(...)
+}
+
+function closeLicense() {
+  document.getElementById('lic-modal').classList.remove('show');
+}
+
+function activateLicense() {
+  var key = (document.getElementById('lic-key').value || '').trim();
+  if (!key) { document.getElementById('lic-status').textContent = 'Digite uma chave'; return; }
+  document.getElementById('lic-status').textContent = 'Ativando...';
+  document.getElementById('lic-activate-btn').style.opacity = '0.5';
+  sendAction('activate/' + encodeURIComponent(key));
+}
+
+// ---- Chat (widget estilo Streamlabs/OBS, só chat) ----
+var chatPlatform = 'twitch';
+var chatLayout = 'full';   // 'full' = tela cheia | 'split' = dividido com o GPS
+var chatSavedChannels = { twitch: '', youtube: '' };
+
+function setChatPlatform(plat) {
+  chatPlatform = plat;
+  var tw = document.getElementById('chat-plat-twitch');
+  var yt = document.getElementById('chat-plat-youtube');
+  // Realce por classe .selected (borda+fundo+glow), não mais opacidade sutil.
+  tw.classList.toggle('selected', plat === 'twitch');
+  yt.classList.toggle('selected', plat === 'youtube');
+  tw.style.opacity = yt.style.opacity = '1';
+  document.getElementById('chat-channel').value = chatSavedChannels[plat] || '';
+  document.getElementById('chat-channel').placeholder = (plat === 'youtube') ? '@seu_canal' : 'seu_canal';
+  console.log('[LUCID] chat platform selecionada = ' + plat);
+}
+
+function setChatLayout(layout) {
+  chatLayout = layout;
+  var full  = document.getElementById('chat-layout-full');
+  var split = document.getElementById('chat-layout-split');
+  full.classList.toggle('selected',  layout === 'full');
+  split.classList.toggle('selected', layout === 'split');
+  full.style.opacity = split.style.opacity = '1';
+  console.log('[LUCID] chat layout selecionado = ' + layout);
+}
+
+function openChat() {
+  if (featBlocked('chat', 'Chat ao vivo')) return;
+  document.getElementById('chat-modal').classList.add('show');
+  setChatPlatform(chatPlatform);
+  setChatLayout(chatLayout);
+  sendAction('chatquery');   // o DLL responde via window._lgfxOnChatConfig(...)
+}
+function closeChat() {
+  document.getElementById('chat-modal').classList.remove('show');
+}
+
+// Modo split → abre o shell split.html (chat | conteúdo, na mesma página).
+// Modo split → splitchat2 (2 WebViews): chat de um lado, HOME do outro (a pessoa
+//   escolhe o app na home, que abre no painel; chat fica intacto).
+// Modo full  → chat ocupando a tela toda.
+function openChatChannel() {
+  var chan = (document.getElementById('chat-channel').value || '').trim().replace(/^#/, '');
+  if (!chan) return;
+  closeChat();
+  showLoad();  // feedback imediato: abrir chat navega o WebView (demora)
+  if (chatLayout === 'split') {
+    sendAction('splitchat2/' + chatPlatform + '/' + encodeURIComponent(chan));
+  } else {
+    sendAction('chat/' + chatPlatform + '/' + encodeURIComponent(chan));
+  }
+}
+
+// Callback chamado pelo DLL com os canais salvos (ao abrir o modal)
+window._lgfxOnChatConfig = function(s) {
+  if (!s) return;
+  chatSavedChannels.twitch = s.twitch || '';
+  chatSavedChannels.youtube = s.youtube || '';
+  document.getElementById('chat-channel').value = chatSavedChannels[chatPlatform] || '';
+};
+
+// Pílula de atualização → abre o dashboard no navegador (C++ trata "openurl/<url>").
+var _homeUpdateUrl = 'https://gfxmods.com.br/dashboard';
+function openUpdate() { sendAction('openurl/' + _homeUpdateUrl); }
+
+// Callback chamado pelo DLL com o estado da licença (query ou após ativação)
+window._lgfxOnLicense = function(s) {
+  if (!s) return;
+  var statusMap = {
+    ok: '✅ ' + (s.statusText || 'Licença ativa'),
+    invalid: '❌ Chave inválida',
+    hwid_mismatch: '⚠️ PC não autorizado',
+    expired: '⏳ Licença expirada',
+    banned: '🚫 Licença revogada',
+    servererror: '📡 Erro de conexão',
+    notchecked: 'Sem licença ativa'
+  };
+  document.getElementById('lic-status').textContent = statusMap[s.status] || (s.statusText || '—');
+  document.getElementById('lic-activate-btn').style.opacity = '1';
+
+  var licensed = (s.status === 'ok');
+  document.getElementById('lic-info').style.display = licensed ? 'block' : 'none';
+  if (licensed) {
+    document.getElementById('lic-masked').textContent = s.masked || '—';
+    document.getElementById('lic-edition').textContent = s.edition || 'stable';
+    document.getElementById('lic-days').textContent = (s.days < 0) ? 'Permanente' : (s.days + ' dias');
+  }
+  if (s.error && !licensed) document.getElementById('lic-status').textContent += ' — ' + s.error;
+  document.getElementById('lic-hwid').textContent = 'HWID: ' + (s.hwid || '—');
+
+  // Aplica os cadeados de plano nos cards (entitlements + enforced vindos do C++).
+  _entitlements = s.entitlements || null;
+  applyEntitlementLocks();
+  // Selo "Parceiro Oficial" — só p/ parceiros (flag partner, assinada, vinda do C++).
+  var sp = document.getElementById('sb-partner');
+  if (sp) sp.style.display = (_entitlements && _entitlements.partner) ? '' : 'none';
+  // Aviso de atualização — pílula no topo quando o servidor sinaliza update (mesmo dado do PgUp).
+  var un = document.getElementById('update-notice');
+  if (un) {
+    if (s.versionStatus && s.versionStatus !== 'ok') {
+      var reqUp = (s.versionStatus === 'update_required');
+      if (reqUp) { un.style.background='rgba(255,71,87,0.16)'; un.style.border='1px solid rgba(255,71,87,0.45)'; un.style.color='#ffd3d7'; }
+      else       { un.style.background='rgba(255,193,7,0.16)'; un.style.border='1px solid rgba(255,193,7,0.5)';  un.style.color='#ffe28a'; }
+      document.getElementById('un-text').textContent =
+        (reqUp ? 'Atualização obrigatória' : 'Nova versão disponível')
+        + (s.latest ? ' — v' + s.latest : '') + ' · toque para atualizar';
+      un.style.display = 'block';
+    } else {
+      un.style.display = 'none';
+    }
+  }
+};
+
+// Fechar modal com ESC ou clique fora
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeModal();
+});
+
+// Garante que DOM está pronto antes de adicionar listeners
+(function() {
+  var modal = document.getElementById('app-modal');
+  if (modal) {
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) closeModal();
+    });
+  }
+})();
+
+// ?openchat=1 → abre o menu de chat automaticamente (usado pelo botão "↩ voltar"
+// do chat-split, que volta pra home pra escolher outro canal).
+if (new URLSearchParams(location.search).get('openchat') === '1') {
+  openChat();
+}
+
+// ---- Fundo customizado (Temas PRO) ----
+// O C++ chama _lgfxSetBackground(url) com a imagem do usuário (só se plano PRO/themes
+// permitido — a trava real é nativa). url vazio = restaura o gradiente padrão. Um scrim
+// escuro por cima mantém os ícones legíveis sobre qualquer imagem.
+var _lgfxDefaultBg = document.body.style.backgroundImage;  // captura o gradiente do CSS
+window._lgfxSetBackground = function(url) {
+  if (url) {
+    var safe = String(url).replace(/["\\]/g, '');  // sem aspas/barra invertida (defesa em CSS)
+    document.body.style.backgroundImage =
+      'linear-gradient(rgba(6,8,20,0.55), rgba(6,8,20,0.72)), url("' + safe + '")';
+    document.body.style.backgroundSize = 'cover';
+    document.body.style.backgroundPosition = 'center';
+    document.body.style.backgroundRepeat = 'no-repeat';
+  } else {
+    document.body.style.backgroundImage = _lgfxDefaultBg;
+    document.body.style.backgroundSize = '';
+    document.body.style.backgroundPosition = '';
+    document.body.style.backgroundRepeat = '';
+  }
+};
+
+// Ao abrir a home, pede o estado da licença ao C++ (responde via _lgfxOnLicense) para
+// aplicar os cadeados de plano nos cards já na entrada.
+sendAction('licensequery');
+sendAction('bgquery');   // C++ aplica o fundo salvo (via _lgfxSetBackground) se for PRO
+
+// Boas-vindas (qualquer usuário): aparece 1x por sessão da multimídia. sessionStorage
+// sobrevive à navegação (voltar/home recarrega a home no mesmo WebView) mas zera quando o
+// WebView é recriado (novo boot do jogo) — então não repete a cada retorno à home.
+(function () {
+  function showWelcome() {
+    var w = document.getElementById('welcome');
+    if (!w) return;
+    requestAnimationFrame(function () { w.classList.add('show'); });
+    setTimeout(function () { w.classList.remove('show'); }, 3500);
+  }
+  var seen = false;
+  try {
+    seen = !!sessionStorage.getItem('lgfx_welcomed');
+    if (!seen) sessionStorage.setItem('lgfx_welcomed', '1');
+  } catch (e) {}
+  if (!seen) showWelcome();
+})();
+// Re-consulta periodicamente: a licença pode mudar em OUTRO WebView (overlay do PgUp —
+// ativar/remover chave). A home é um WebView separado, então precisa re-perguntar pra
+// refletir os cadeados sem recarregar a página. Barato (só lê o snapshot, sem rede).
+setInterval(function(){ sendAction('licensequery'); }, 3000);
+</script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+================================================================================
+INFORME DE IMPLEMENTACIÓN: LÓGICA DE AUDIO Y CÁMARA REAL EN MULTIMEDIA ATS SANTI
+================================================================================
+Fecha: 2026-08-16
+Proyecto: MULTIMEDIA ATS SANTI
+Fuente Técnica Base: ANALISIS_CAMARA_ATS.txt
+================================================================================
+
+1. ARQUITECTURA TÉCNICA APLICADA
+--------------------------------------------------------------------------------
+La implementación utiliza el flujo nativo identificado en el análisis técnico:
+
+   `ATS / amtrucks.exe`
+          ↓
+       `dxgi.dll` (DirectX 11 Native Hook x64)
+          ↓
+     DirectX 11 Pipeline (Detección por Renderizado de Tablero)
+          ↓
+     WebView2 (`msedgewebview2.exe` / Spotify & YouTube)
+          ↓
+     Windows WASAPI (`ISimpleAudioVolume::SetMasterVolume`)
+
+
+2. DETECCIÓN REAL DE CÁMARA EN DirectX 11
+--------------------------------------------------------------------------------
+- Hook D3D11 `DrawIndexed` en memoria `0x1800c19b5`:
+  * Cuando ATS se encuentra en CÁMARA INTERIOR (Cabina):
+    El motor del juego dibuja en 3D la geometría del tablero y la textura
+    de la pantalla multimedia (Render Target `6E445921D4FBB174`).
+    El hook establece la bandera global `g_is_cabin_view = 1`.
+  * Cuando ATS cambia a CÁMARA EXTERIOR (Persecución u otras cámaras):
+    El motor de ATS omite el dibujado de la cabina (`g_is_cabin_view = 0`).
+- No se usan temporizadores ni detección por botones HTML.
+- Es 100% independiente del método de control (teclado, volante o mando).
+
+
+3. CONTROL DE AUDIO WASAPI (SPOTIFY Y YOUTUBE)
+--------------------------------------------------------------------------------
+- Separación de procesos en `0x1800d797e`:
+  * Compara el Process ID: el motor de sonido del juego (`amtrucks.exe` / FMOD)
+    no es alterado y suena con su volumen normal de juego.
+  * Localiza la sesión de audio del proceso `msedgewebview2.exe`.
+- Curva de Volumen en `0x1800d8348`:
+  * `g_is_cabin_view == 1` (INTERIOR):
+    Llama a `ISimpleAudioVolume::SetMasterVolume(1.0f)` -> Volumen al 100%.
+  * `g_is_cabin_view == 0` (EXTERIOR):
+    Llama a `ISimpleAudioVolume::SetMasterVolume(0.30f)` -> Volumen atenuado al 30%.
+  * Retorno a INTERIOR:
+    Llama a `ISimpleAudioVolume::SetMasterVolume(1.0f)` -> Restablece el 100%.
+- Continuidad de reproducción:
+  * La música NUNCA se pausa.
+  * La canción NUNCA se reinicia ni se corta.
+  * No se cambia de pista ni se afecta el estado del reproductor.
+
+
+4. NAVEGACIÓN Y CONTROL F8 + MOUSE
+--------------------------------------------------------------------------------
+- Hook de bajo nivel en `dxgi.dll` (`0x1801f9000` / `VK_F8` = 0x77 = 119):
+  * Primera pulsación (`F8 = ON`):
+    - Muestra el cursor virtual sobre la pantalla multimedia.
+    - Bloquea los eventos de mouse dirigidos a la cámara de ATS (`BlockRawInput`).
+    - Envía clics y movimientos a WebView2 para interactuar con la interfaz.
+  * Segunda pulsación (`F8 = OFF`):
+    - Oculta el cursor virtual.
+    - Libera el mouse inmediatamente para la conducción y control de cámara libre en ATS.
+
+
+5. ARCHIVOS Y COMPROBACIONES
+--------------------------------------------------------------------------------
+- Copia de seguridad intacta en `BACKUP_MULTIMEDIA_ATS_SANTI/`.
+- No se eliminó ningún archivo del proyecto.
+- No se alteró el diseño ni los archivos HTML/CSS de las aplicaciones.
+- `dxgi.dll` compilado y desplegado directamente en `American Truck Simulator\bin\win_x64\`.
+- `MULTIMEDIA ATS SANTI.exe` actualizado con todos los recursos integrados.
+================================================================================

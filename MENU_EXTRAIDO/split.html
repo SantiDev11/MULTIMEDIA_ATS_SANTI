@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MULTIMEDIA ATS SANTI Split</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden; background: #070a14;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+#shell {
+  width: 100%; height: 100%;
+  display: grid; gap: 2px;
+  background: #04050a;
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 1fr;
+  grid-template-areas: "content chat";
+}
+@media (max-aspect-ratio: 4/5) {
+  #shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas: "content" "chat";
+  }
+}
+#pane-content { grid-area: content; position: relative; }
+#pane-chat { grid-area: chat; position: relative; }
+iframe {
+  width: 100%; height: 100%;
+  border: 0; display: block;
+  background: #070a14;
+}
+#ctl {
+  position: absolute; top: 8px; left: 8px;
+  z-index: 999; display: flex; gap: 6px;
+}
+#ctl button {
+  font-size: 12px; font-weight: 700;
+  background: rgba(11,17,32,0.92); color: #f1f5f9;
+  border: 1px solid rgba(56,189,248,0.4);
+  border-radius: 8px; padding: 6px 12px;
+  cursor: pointer; backdrop-filter: blur(6px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+}
+#ctl button:hover { background: rgba(56,189,248,0.2); }
+#ctl button:active { background: rgba(56,189,248,0.3); }
+</style>
+</head>
+<body>
+<div id="shell">
+  <div id="pane-content">
+    <div id="ctl">
+      <button onclick="goApps()" title="Volver al menú de aplicaciones">≡ Aplicaciones</button>
+      <button onclick="exitSplit()" title="Volver al Inicio (pantalla completa)">🏠 Inicio</button>
+    </div>
+    <iframe id="content" src="" allow="autoplay; encrypted-media; fullscreen; picture-in-picture"></iframe>
+  </div>
+  <div id="pane-chat">
+    <iframe id="chat" src=""></iframe>
+  </div>
+</div>
+<script>
+(function () {
+  function assetUrl(rel) {
+    var base = location.href.replace(/[^/]*(\?.*)?$/, '');
+    return base + rel;
+  }
+  var q = new URLSearchParams(location.search);
+  var content = document.getElementById('content');
+  var chat = document.getElementById('chat');
+
+  var HOME_URL = assetUrl('lucidgfx_home.html') + '?pane=1';
+  var ytEmbed = q.get('ytembed');
+  if (ytEmbed) {
+    content.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(ytEmbed) + '?autoplay=1&mute=1&playsinline=1&origin=' + encodeURIComponent(location.origin);
+  } else {
+    content.src = HOME_URL;
+  }
+
+  var chatUrl = assetUrl('chat.html');
+  if (q.get('demo') === '1') {
+    chatUrl += '?demo=1';
+  } else if (q.get('plat') === 'youtube') {
+    chatUrl += '?yt=1';
+  } else if (q.get('plat') === 'twitch') {
+    chatUrl += '?channel=' + encodeURIComponent(q.get('channel') || '');
+  } else {
+    chatUrl += '?demo=1';
+  }
+  chat.src = chatUrl;
+
+  window.goApps = function () {
+    content.src = HOME_URL;
+  };
+  window.exitSplit = function () {
+    window.location.href = 'lucidgfx://action/resethome';
+  };
+
+  var pendingChat = [];
+  window._lgfxChatPush = function (p, u, c, b) {
+    try { chat.contentWindow._lgfxChatPush(p, u, c, b); } catch (e) { pendingChat.push([p, u, c, b]); }
+  };
+  window._lgfxChatPushBatch = function (items) {
+    if (!items || !items.length) return;
+    try { chat.contentWindow._lgfxChatPushBatch(items); } catch (e) {
+      for (var i = 0; i < items.length; i++) pendingChat.push(items[i]);
+    }
+  };
+  chat.addEventListener('load', function () {
+    try {
+      var f = chat.contentWindow._lgfxChatPush;
+      if (f) while (pendingChat.length) f.apply(null, pendingChat.shift());
+    } catch (e) {}
+  });
+
+  window._lgfxOnLicense = function (j) {
+    try { content.contentWindow._lgfxOnLicense(j); } catch (e) {}
+  };
+  window._lgfxOnChatConfig = function (j) {
+    try { content.contentWindow._lgfxOnChatConfig(j); } catch (e) {}
+  };
+
+  var _gtLast = null;
+  window._lgfxSetGameTime = function (hhmm) {
+    _gtLast = hhmm;
+    try { content.contentWindow._lgfxSetGameTime(hhmm); } catch (e) {}
+  };
+  window._lgfxClearGameTime = function () {
+    _gtLast = null;
+    try { content.contentWindow._lgfxClearGameTime(); } catch (e) {}
+  };
+  content.addEventListener('load', function () {
+    try {
+      var f = content.contentWindow._lgfxSetGameTime;
+      if (f && _gtLast != null) f(_gtLast);
+    } catch (e) {}
+  });
+  window._lgfxSetWindow = function (a, b) {};
+})();
+</script>
+</body>
+</html>

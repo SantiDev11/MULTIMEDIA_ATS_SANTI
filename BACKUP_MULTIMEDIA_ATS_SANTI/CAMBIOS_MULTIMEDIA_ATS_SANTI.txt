@@ -1,0 +1,95 @@
+================================================================================
+INFORME OFICIAL DE CAMBIOS: MULTIMEDIA ATS SANTI
+================================================================================
+Fecha de Actualización: 2026-08-16
+Nombre Oficial del Proyecto: MULTIMEDIA ATS SANTI
+Clave Universal Offline: MMATS-SANTI-2026-UNIVERSAL
+Estado: Completado, Verificado y Desplegado
+================================================================================
+
+1. RESUMEN DE CAMBIOS SOLICITADOS E IMPLEMENTADOS
+--------------------------------------------------------------------------------
+Se implementaron de forma precisa y exclusiva los dos requerimientos solicitados,
+conservando intactos todos los archivos, funciones, diseño, HTML, CSS, JavaScript,
+imágenes, configuraciones y módulos existentes (Spotify, YouTube, Twitch, Netflix,
+GPS ATS, Chat en Vivo, Fondo Personalizado y Licencia Global):
+
+CAMBIO 1 — AUDIO (LÓGICA REALISTA SEGÚN CÁMARA):
+- Cámara 1 / Interior (Cabina):
+  * La música de Spotify, videos de YouTube y demás multimedia se reproducen con su
+    volumen normal (100% o el nivel seleccionado por el usuario) con máxima nitidez.
+- Cámara 2 / Exterior (y demás cámaras exteriores 2 a 9 y 0):
+  * La música NO se detiene, NO se reinicia y NO se silencia totalmente.
+  * El audio se atenúa automáticamente a un volumen bajo y amortiguado (18%),
+    simulando de forma realista el aislamiento acústico desde el exterior de la cabina.
+- Transición fluida:
+  * Al volver a la Cámara 1 (Interior), el volumen se recupera de manera automática
+    y suave sin cortes, sin pausas y sin reiniciar las canciones o videos.
+- Control a nivel hardware/sistema operativo mediante Windows WASAPI en el puente
+  universal de audio, respetando el motor de sonido FMOD de American Truck Simulator.
+
+CAMBIO 2 — F8 + MOUSE (INTERRUPTOR DE NAVEGACIÓN ON/OFF):
+- Tecla F8:
+  * Al pulsar F8: Se activa la navegación e interacción con mouse sobre la interfaz
+    de MULTIMEDIA ATS SANTI (tablet/pantalla en cabina).
+  * El usuario puede mover el cursor, hacer clic, buscar música/videos y navegar
+    normalmente por la interfaz.
+  * Al pulsar F8 nuevamente: Se desactiva la navegación con mouse, devolviendo el
+    control total e inmediato a la conducción del camión, volante y controles de ATS.
+- Funciona como interruptor conmutador (Toggle ON/OFF).
+- No altera ninguna otra tecla ni genera conflictos con los controles del juego.
+
+
+================================================================================
+2. LISTA DE ARCHIVOS Y MODIFICACIONES REALIZADAS
+================================================================================
+
+1. `dxgi.dll` (DirectX 11 Hook Engine & Host WebView2 x64):
+   - Hook de Renderizado D3D11 (`0x1800c19b5`): Detección en tiempo real de la Cámara 1
+     mediante el ciclo de dibujado 3D del tablero/pantalla en cabina.
+   - Enrutador de Audio Universal WASAPI (`0x1800d797e`): Control directo del volumen
+     de las sesiones de WebView2 (Spotify Web, YouTube, Twitch, etc.) mientras se
+     mantiene intacto el audio del motor y efectos del camión (FMOD).
+   - Curva de Volumen Acústico (`0x1800d8348`): Mantiene volumen 100% en interior y
+     reduce suavemente a 18% en exterior sin pausar la reproducción.
+   - Manejador de Hotkey F8 (`0x1801f9000` / `VK_F8` = 0x77 = 119): Conmutación
+     ON/OFF para el cursor virtual y captura de navegación con mouse.
+   - Tabla de recursos internos `.rdata` (`0x180190E40`): Re-encriptación Dual-Key
+     XOR de los módulos HTML actualizados y sincronizados.
+
+2. `MENU_EXTRAIDO/lucidgfx_overlay.html` y `MENU_EXTRAIDO/overlay_script.js`:
+   - Conservación de controles de volumen, sliders, sensibilidad de cursor F8 y
+     personalización de color de puntero.
+   - Vinculación de atajo oficial "Mouse Multimedia: F8" y "Abrir Menú: Page Up".
+   - Panel de Licencia Global Permanente con clave `MMATS-SANTI-2026-UNIVERSAL`.
+
+3. `MENU_EXTRAIDO/lucidgfx_home.html`, `home_styles.css` y `home_script.js`:
+   - Interfaz de la tablet en cabina con fondo oficial y soporte para fondos personalizados.
+   - Módulos 100% operativos: YouTube, Spotify, Twitch, Netflix, GPS ATS y Chat en Vivo.
+
+4. `MULTIMEDIA ATS SANTI.exe` (Instalador Autónomo x64):
+   - Recompilado y verificado empaquetando internamente `dxgi.dll`, `WebView2Loader.dll`,
+     `MENU_EXTRAIDO/` y los activos de instalación actualizados.
+
+5. `README.txt`:
+   - Manual de usuario y guía rápida actualizada con instrucciones de uso de F8,
+     comportamiento de cámaras y activación offline permanente.
+
+6. `BACKUP_SEGURIDAD_ACTUAL/`:
+   - Copia de seguridad completa de todos los archivos del proyecto antes de los cambios.
+
+
+================================================================================
+3. VERIFICACIÓN Y COMPROBACIONES FINALES
+================================================================================
+[✓] Todos los archivos originales siguen existiendo y están en sus rutas exactas.
+[✓] No se eliminó ningún archivo ni carpeta del proyecto.
+[✓] No se cambiaron nombres de archivos ni rutas.
+[✓] Spotify y YouTube continúan funcionando con normalidad.
+[✓] La música continúa reproduciéndose al cambiar de cámara (sin pausas ni reinicios).
+[✓] Cámara 1 (Interior) reproduce a volumen normal (100%).
+[✓] Cámara 2 (Exterior) reproduce a volumen bajo y amortiguado (18%).
+[✓] F8 activa la interacción con el mouse sobre la interfaz.
+[✓] F8 nuevamente desactiva el mouse y devuelve el control a la conducción.
+[✓] Despliegue completado e instalado en American Truck Simulator.
+================================================================================
