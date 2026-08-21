@@ -100,6 +100,28 @@ function paintTime() {
 paintTime();
 setInterval(paintTime, 2000);
 
+// =============================================================================
+// AUDIO INMERSIVO 3D POR CÁMARA — no se implementa aquí, y es a propósito.
+//
+// Lo gestiona el servicio externo mmats_audio_inmersivo.exe, que detecta la
+// cámara (controls.sii + hook de teclado) y atenúa las sesiones de audio del
+// WebView2 directamente por WASAPI.
+//
+// Por qué no puede vivir en esta página:
+//   1. Al abrir Spotify/YouTube a pantalla completa, launchApp() hace
+//      window.location.href = url y esta página desaparece: cualquier script
+//      del mod dejaría de existir justo cuando empieza a sonar la música.
+//   2. Spotify y YouTube corren en iframes cross-origin; la Web Audio API no
+//      puede tocar ese audio (por eso el reverb que había aquí antes no hacía
+//      absolutamente nada).
+//   3. dxgi.dll no expone ningún aviso de cambio de cámara: el SDK de SCS
+//      Telemetry no publica la cámara activa y la DLL solo registra los canales
+//      game.time, truck.electric.enabled y truck.engine.enabled.
+//
+// Se configura desde la pestaña Config del overlay, que habla con el servicio
+// por HTTP en 127.0.0.1:48221.
+// =============================================================================
+
 // Abre el modal de elección (Pantalla Completa / Split)
 function go(url, name, feat) {
   console.log('[MULTIMEDIA ATS SANTI] go() llamada: ' + url);

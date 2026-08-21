@@ -120,6 +120,11 @@ function closeChat(){document.getElementById('chat-modal').classList.remove('sho
 function openChatChannel(){var chan=(document.getElementById('chat-channel').value||'').trim().replace(/^#/,'');if(!chan)return;closeChat();showLoad();sendAction('chat/'+chatPlat+'/'+encodeURIComponent(chan));}
 window._lgfxSetWindow=function(){};window._lgfxOnChatConfig=function(){};window._lgfxOnLicense=function(){};
 (function(){var w=document.getElementById('welcome');if(w){setTimeout(function(){w.classList.add('show');},300);setTimeout(function(){w.classList.remove('show');},3000);}})();
+// El audio inmersivo 3D por cámara NO vive aquí: lo gestiona el servicio externo
+// mmats_audio_inmersivo.exe sobre las sesiones WASAPI del WebView2. Tiene que ser
+// externo porque al abrir Spotify a pantalla completa esta página se sustituye por
+// la del sitio y cualquier script del mod dejaría de existir. Se configura desde
+// la pestaña Config del overlay.
 </script>
 </body>
 </html>

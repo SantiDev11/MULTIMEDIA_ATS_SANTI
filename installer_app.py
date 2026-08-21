@@ -25,6 +25,10 @@ LOG_FILENAME = "MULTIMEDIA_ATS_SANTI_INSTALL.log"
 MANIFEST_FILENAME = "MULTIMEDIA_ATS_SANTI_MANIFEST.json"
 UNIVERSAL_LICENSE = "MMATS-SANTI-2026-UNIVERSAL"
 
+# Servicio de Audio Inmersivo 3D por cámara (proceso independiente del mod).
+AUDIO_HELPER_EXE = "mmats_audio_inmersivo.exe"
+AUDIO_HELPER_RUN_KEY = "MULTIMEDIA ATS SANTI - Audio Inmersivo"
+
 def get_bundle_dir():
     """Retorna el directorio donde residen los recursos empaquetados por PyInstaller o en modo desarrollo."""
     if getattr(sys, 'frozen', False):
@@ -50,11 +54,66 @@ def get_source_files():
     if not os.path.isdir(menu_dir):
         menu_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "MENU_EXTRAIDO")
         
+    # Servicio de Audio Inmersivo 3D por cámara. Es opcional: si no está
+    # empaquetado, la instalación continúa sin él (el mod funciona igual, solo
+    # que el overlay mostrará "Servicio no iniciado").
+    audio_path = os.path.join(base_dir, AUDIO_HELPER_EXE)
+    if not os.path.isfile(audio_path):
+        audio_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), AUDIO_HELPER_EXE)
+
     return {
         "dxgi": dxgi_path,
         "webview": webview_path,
-        "menu_dir": menu_dir
+        "menu_dir": menu_dir,
+        "audio_helper": audio_path
     }
+
+
+# ==============================================================================
+# SERVICIO DE AUDIO INMERSIVO 3D POR CÁMARA
+# ==============================================================================
+
+def stop_audio_helper():
+    """Detiene el servicio de audio si está corriendo (para poder sobrescribirlo)."""
+    try:
+        subprocess.run(f'taskkill /F /IM "{AUDIO_HELPER_EXE}" /T',
+                       shell=True, capture_output=True, timeout=15)
+    except Exception:
+        pass
+
+
+def set_audio_helper_autostart(exe_path, enable=True):
+    """
+    Registra (o quita) el arranque automático del servicio en HKCU\\...\\Run.
+    Se usa HKCU y no HKLM a propósito: no requiere privilegios de administrador
+    y el servicio solo necesita los permisos del usuario que juega.
+    El propio servicio se queda dormido mientras amtrucks.exe no esté en marcha.
+    """
+    import winreg
+    clave = r"Software\Microsoft\Windows\CurrentVersion\Run"
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, clave, 0, winreg.KEY_SET_VALUE) as k:
+            if enable:
+                winreg.SetValueEx(k, AUDIO_HELPER_RUN_KEY, 0, winreg.REG_SZ, f'"{exe_path}"')
+            else:
+                try:
+                    winreg.DeleteValue(k, AUDIO_HELPER_RUN_KEY)
+                except FileNotFoundError:
+                    pass
+        return True, None
+    except OSError as e:
+        return False, str(e)
+
+
+def launch_audio_helper(exe_path):
+    """Arranca el servicio ya mismo para que el usuario no tenga que reiniciar."""
+    try:
+        flags = 0x00000008 | 0x08000000  # DETACHED_PROCESS | CREATE_NO_WINDOW
+        subprocess.Popen([exe_path], creationflags=flags, close_fds=True,
+                         cwd=os.path.dirname(exe_path))
+        return True, None
+    except Exception as e:
+        return False, str(e)
 
 def calculate_sha256(filepath):
     """Calcula el hash SHA-256 de un archivo."""
@@ -366,9 +425,46 @@ class ModInstallerEngine:
                 })
                 self.log(f"  [OK] {rel_path} desplegado.")
 
+        # 6b. Servicio de Audio Inmersivo 3D por cámara
+        self.set_progress(80, "Instalando el servicio de Audio Inmersivo 3D...")
+        self.log("[5/7] Desplegando el servicio de Audio Inmersivo 3D por cámara...")
+
+        if os.path.isfile(sources["audio_helper"]):
+            # Hay que pararlo antes: si está corriendo, el .exe está bloqueado.
+            stop_audio_helper()
+            dest_audio = os.path.join(target_bin_dir, AUDIO_HELPER_EXE)
+            try:
+                shutil.copy2(sources["audio_helper"], dest_audio)
+                audio_hash = calculate_sha256(dest_audio)
+                installed_records.append({
+                    "relative_path": AUDIO_HELPER_EXE,
+                    "full_path": dest_audio,
+                    "size_bytes": os.path.getsize(dest_audio),
+                    "sha256": audio_hash,
+                    "type": "audio_service"
+                })
+                self.log(f"  [OK] {AUDIO_HELPER_EXE} instalado -> SHA-256: {audio_hash[:16]}...")
+
+                ok_reg, err_reg = set_audio_helper_autostart(dest_audio, True)
+                if ok_reg:
+                    self.log("  [OK] Arranque automático registrado (solo para tu usuario).")
+                else:
+                    self.log(f"  [WARN] No se pudo registrar el arranque automático: {err_reg}", "WARN")
+
+                ok_run, err_run = launch_audio_helper(dest_audio)
+                if ok_run:
+                    self.log("  [OK] Servicio iniciado. Se queda dormido hasta que abras ATS.")
+                else:
+                    self.log(f"  [WARN] No se pudo iniciar ahora: {err_run}. Se iniciará al reiniciar Windows.", "WARN")
+            except Exception as e:
+                self.log(f"  [WARN] No se pudo instalar el servicio de audio: {e}", "WARN")
+        else:
+            self.log("  [INFO] Servicio de audio no incluido en este paquete. El mod funcionará "
+                     "igual, pero sin atenuación por cámara.")
+
         # 7. Generación de Manifiesto y Registro de Instalación
         self.set_progress(88, "Generando registros de instalación...")
-        self.log("[5/6] Creando manifiesto JSON y log oficial...")
+        self.log("[6/7] Creando manifiesto JSON y log oficial...")
 
         manifest_data = {
             "mod_name": APP_NAME,
@@ -403,7 +499,7 @@ class ModInstallerEngine:
 
         # 8. Verificación de Integridad Final
         self.set_progress(95, "Verificando integridad final...")
-        self.log("[6/6] Comprobando existencia y accesibilidad de todos los archivos...")
+        self.log("[7/7] Comprobando existencia y accesibilidad de todos los archivos...")
         for rec in installed_records:
             if not os.path.isfile(rec["full_path"]):
                 return False, f"Fallo al verificar el archivo instalado: {rec['full_path']}"
@@ -447,8 +543,19 @@ class ModInstallerEngine:
         if not files_to_remove:
             files_to_remove = [
                 os.path.join(target_bin_dir, "dxgi.dll"),
-                os.path.join(target_bin_dir, "WebView2Loader.dll")
+                os.path.join(target_bin_dir, "WebView2Loader.dll"),
+                os.path.join(target_bin_dir, AUDIO_HELPER_EXE)
             ]
+
+        # Parar el servicio de audio y quitar su arranque automático antes de
+        # borrar nada: mientras corre, su .exe está bloqueado por Windows.
+        self.set_progress(30, "Deteniendo el servicio de Audio Inmersivo 3D...")
+        stop_audio_helper()
+        ok_reg, err_reg = set_audio_helper_autostart(None, False)
+        if ok_reg:
+            self.log("  [OK] Arranque automático del servicio de audio eliminado.")
+        else:
+            self.log(f"  [WARN] No se pudo limpiar el arranque automático: {err_reg}", "WARN")
 
         self.set_progress(40, "Eliminando archivos del mod...")
         removed_count = 0

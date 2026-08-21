@@ -163,6 +163,7 @@ function volAdj(delta) {
   var v = Math.max(0, Math.min(100, cur + delta));
   if (vv) vv.textContent = v + '%';
   if (vs) vs.value = v;
+  try { localStorage.setItem('mmats_audio_volume', String(v)); } catch(e){} // preferencia bruta (la home lee esto)
   postMsg({action:'setVol', val:v});
 }
 
@@ -175,6 +176,7 @@ function volSlider(v) {
   v = Math.max(0, Math.min(100, parseInt(v, 10) || 0));
   var vv = document.getElementById('vol-val');
   if (vv) vv.textContent = v + '%';
+  try { localStorage.setItem('mmats_audio_volume', String(v)); } catch(e){} // preferencia bruta (la home lee esto)
   postMsg({action:'setVol', val:v});
 }
 
@@ -223,6 +225,105 @@ function mouseColorSet(c) {
 
 function powerGateSet(on) { postMsg({action:'setPowerGate', val: on ? '1' : '0'}); }
 function mouseHintSet(on) { postMsg({action:'setMouseHint', val: on ? '1' : '0'}); }
+
+// =============================================================================
+// AUDIO INMERSIVO 3D POR CÁMARA
+// El trabajo real lo hace el servicio externo mmats_audio_inmersivo.exe: detecta
+// la cámara leyendo controls.sii + hook de teclado, y atenúa las sesiones de
+// audio del WebView2 por WASAPI. Este overlay es solo su panel de control y
+// habla con él por HTTP en 127.0.0.1.
+//   No se hace desde aquí porque al abrir Spotify a pantalla completa la página
+//   del mod se sustituye por la del sitio y cualquier script nuestro muere.
+// =============================================================================
+var IMMERSIVE_URL = 'http://127.0.0.1:48221';
+var _immOnline = false;
+var _immPollTimer = null;
+
+function immersiveAudioOn(){ try{ return localStorage.getItem('mmats_immersive_audio') === '1'; }catch(e){ return false; } }
+
+function _immPost(payload) {
+  // text/plain evita el preflight CORS: el servicio parsea el cuerpo como JSON igual.
+  return fetch(IMMERSIVE_URL + '/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  }).then(function(r){ return r.json(); }).then(_immApply).catch(function(){ _immOffline(); });
+}
+
+function immersiveToggleSet(on) {
+  try { localStorage.setItem('mmats_immersive_audio', on ? '1' : '0'); } catch(e) {}
+  var cb = document.getElementById('immersive-toggle');
+  if (cb) cb.checked = !!on;
+  _immPost({ enabled: !!on });
+}
+
+function immersiveLevelLabel(v) {
+  var el = document.getElementById('immersive-val');
+  if (el) el.textContent = (Math.max(0, Math.min(100, parseInt(v, 10) || 0))) + '%';
+}
+
+function immersiveLevelSet(v) {
+  v = Math.max(0, Math.min(100, parseInt(v, 10) || 0));
+  immersiveLevelLabel(v);
+  try { localStorage.setItem('mmats_immersive_level', String(v)); } catch(e) {}
+  _immPost({ exterior_pct: v });
+}
+
+function _immApply(st) {
+  if (!st || !st.ok) { _immOffline(); return; }
+  _immOnline = true;
+  var cb = document.getElementById('immersive-toggle');
+  if (cb) cb.checked = !!st.enabled;
+  var sl = document.getElementById('s-immersive');
+  if (sl && document.activeElement !== sl) sl.value = st.exterior_pct;
+  immersiveLevelLabel(st.exterior_pct);
+  try {
+    localStorage.setItem('mmats_immersive_audio', st.enabled ? '1' : '0');
+    localStorage.setItem('mmats_immersive_level', String(st.exterior_pct));
+  } catch(e) {}
+
+  var lbl = document.getElementById('immersive-status');
+  if (!lbl) return;
+  if (!st.enabled) {
+    lbl.style.color = '#64748b';
+    lbl.textContent = 'Desactivado';
+  } else if (!st.juego) {
+    lbl.style.color = '#94a3b8';
+    lbl.textContent = 'Listo · esperando a ATS';
+  } else if (!st.sesiones) {
+    lbl.style.color = '#f59e0b';
+    lbl.textContent = 'Sin audio · abre Spotify o YouTube';
+  } else if (st.interior) {
+    lbl.style.color = '#10b981';
+    lbl.textContent = '🎧 En cabina · volumen pleno';
+  } else {
+    lbl.style.color = '#38bdf8';
+    lbl.textContent = '🚚 Cámara ' + st.camara + ' · atenuado al ' + st.exterior_pct + '%';
+  }
+}
+
+function _immOffline() {
+  _immOnline = false;
+  var lbl = document.getElementById('immersive-status');
+  if (lbl) {
+    lbl.style.color = '#ef4444';
+    lbl.textContent = 'Servicio no iniciado';
+  }
+}
+
+function immersivePoll() {
+  fetch(IMMERSIVE_URL + '/estado', { cache: 'no-store' })
+    .then(function(r){ return r.json(); })
+    .then(_immApply)
+    .catch(function(){ _immOffline(); });
+}
+
+function immersiveStartPoll() {
+  if (_immPollTimer) return;
+  immersivePoll();
+  _immPollTimer = setInterval(immersivePoll, 1500);
+}
+
 function openLink(url) { postMsg({action:'openUrl', val: url}); }
 
 var _updateUrl = 'https://gfxmods.com.br/dashboard';
@@ -737,6 +838,19 @@ if (window.chrome && window.chrome.webview) {
 window.addEventListener('load', function() {
   updateSourceCards();
   buildMouseColors();
+  
+  // Pinta el último estado conocido para que el panel no salga en blanco, y
+  // arranca el sondeo al servicio de audio inmersivo (él manda sobre esto).
+  (function(){
+    var cb = document.getElementById('immersive-toggle');
+    if (cb) cb.checked = immersiveAudioOn();
+    var lvl = 12;
+    try { var g = parseInt(localStorage.getItem('mmats_immersive_level'), 10); if (Number.isFinite(g)) lvl = g; } catch(e){}
+    var sl = document.getElementById('s-immersive');
+    if (sl) sl.value = lvl;
+    immersiveLevelLabel(lvl);
+    immersiveStartPoll();
+  })();
   
   // Cargar licencia guardada localmente
   try {
