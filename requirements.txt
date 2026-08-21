@@ -3,3 +3,8 @@ capstone>=5.0.0
 PyInstaller>=6.0.0
 pygame>=2.5.0
 Pillow>=10.0.0
+
+# Servicio de Audio Inmersivo 3D por cámara (mmats_audio_inmersivo.py)
+pycaw>=20240210
+comtypes>=1.2.0
+psutil>=5.9.0
