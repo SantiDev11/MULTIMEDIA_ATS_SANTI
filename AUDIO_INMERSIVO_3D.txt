@@ -1,0 +1,300 @@
+================================================================================
+AUDIO INMERSIVO 3D POR CAMARA - MULTIMEDIA ATS SANTI
+================================================================================
+Fecha: 2026-08-20  (revisado el 2026-08-28: se elimina la carrera con el
+                    watchdog de audio del mod y se respeta el cursor F8)
+Estado: Implementado y verificado.
+
+Este documento SUSTITUYE a ANALISIS_CAMARA_ATS.txt y CAMBIOS_AUDIO_CAMARA.txt.
+Aquellos describian una implementacion dentro de dxgi.dll (hook de DrawIndexed en
+0x1800c19b5, enrutador WASAPI en 0x1800d797e, llamada a _lgfxOnCameraChange desde
+C++) que NUNCA existio. Se comprobo contra el binario real:
+
+  - build_multimedia_ats_santi.py solo parchea render, mouse, features, licencia
+    y la tecla F8. No hay ni un parche de camara ni de audio.
+  - En dxgi.dll no aparece ninguna cadena SetMasterVolume, ISimpleAudioVolume,
+    AudioSession ni msedgewebview2.
+  - `grep -c -a "lgfx" dxgi.dll` da 0: la DLL nunca llama a _lgfxOnCameraChange.
+  - El plugin de telemetria de la DLL solo registra los canales game.time,
+    truck.electric.enabled y truck.engine.enabled.
+
+Lo unico aprovechable de aquellos informes era el mapeo de camaras de
+controls.sii y la observacion de que el SDK de SCS no expone la camara activa.
+
+
+================================================================================
+1. QUE HACE
+================================================================================
+En cabina (camara 1) la musica suena al volumen pleno del usuario. Al salir a
+cualquier camara exterior (2..8 o camara libre) se silencia con un fundido de
+250 ms (0% por defecto; el overlay permite subirlo hasta el 60% si se prefiere
+oirla lejana). Al volver a la cabina se restaura igual de suave.
+
+La musica NUNCA se pausa, no se reinicia la cancion y no se cambia de pista:
+solo se modula el volumen de la sesion de audio.
+
+El audio del propio juego (motor, bocina, FMOD) no se toca en ningun momento:
+solo se actua sobre las sesiones de msedgewebview2.exe que cuelgan de ATS.
+
+
+================================================================================
+2. ARQUITECTURA
+================================================================================
+
+   Teclado del jugador (1..8, 0, C)
+          |
+          v
+   mmats_audio_inmersivo.exe  ....... servicio de fondo, proceso independiente
+     |- controls.sii  ............... que tecla es cada camara (perfil real)
+     |- Hook WH_KEYBOARD_LL  ........ solo si ATS tiene el foco y el F8 esta off
+     |- WASAPI / IChannelAudioVolume  ganancia sobre las sesiones del WebView2
+     |                                (el volumen maestro sigue siendo del mod)
+     \- HTTP 127.0.0.1:48221  ....... panel de control del overlay
+          ^
+          |
+   lucidgfx_overlay.html (pestana Config)
+
+
+POR QUE ES UN PROCESO EXTERNO Y NO VA DENTRO DE dxgi.dll
+--------------------------------------------------------------------------------
+1. No existe codigo fuente C++ del mod. dxgi.dll es un binario de terceros que
+   este proyecto solo parchea byte a byte con pefile. Meter deteccion de camara
+   ahi obligaria a inyectar ensamblador x64 en un code cave: fragil y se rompe
+   con cada actualizacion del mod.
+2. El SDK oficial de SCS Telemetry no publica la camara activa, asi que un
+   plugin de telemetria tampoco resolveria el problema.
+3. No puede hacerse en JavaScript dentro del WebView: al abrir Spotify a
+   pantalla completa, launchApp() hace window.location.href = url y la pagina
+   lucidgfx_home.html se sustituye por la del sitio. Cualquier script del mod
+   dejaria de existir justo cuando empieza a sonar la musica. Ademas Spotify y
+   YouTube corren en iframes cross-origin y la Web Audio API no puede tocar ese
+   audio (por eso el ConvolverNode de reverb que habia en home_script.js no
+   hacia absolutamente nada: estaba conectado a destination sin que nada se
+   enrutara hacia el).
+
+Un proceso externo sigue vivo siempre: pantalla completa, modo split y GPS.
+
+
+CONVIVENCIA CON EL WATCHDOG DE AUDIO DEL MOD  (reescrito el 2026-08-28)
+--------------------------------------------------------------------------------
+dxgi.dll trae su propio vigilante ("[WV2-AUDIO] watchdog de audio ativo") que
+reaplica mm_audio_volume sobre las sesiones del WebView2 aproximadamente una vez
+por segundo.
+
+La PRIMERA version de este servicio escribia ese mismo campo (ISimpleAudioVolume
+/ SetMasterVolume) e intentaba ganar la carrera reafirmando cada 100 ms. No se
+puede ganar: el watchdog recuperaba el volumen pleno y el servicio tardaba hasta
+100 ms en volver a bajarlo, asi que en camara exterior sonaba un pitido de
+musica a todo volumen CADA SEGUNDO. Eso era el "audio entrecortado, en pequenos
+fragmentos, residual desde fuera". Queda registrado en lucidgfx.log como una
+racha de "[WV2-AUDIO] volume aplicado 100% em 1 sessao(oes)" cada 1,02 s.
+
+La solucion no es correr mas, es dejar de compartir el mando. Windows calcula
+     volumen_final = maestro (ISimpleAudioVolume) x canal (IChannelAudioVolume)
+y son dos campos independientes. Se comprobo en el binario que dxgi.dll usa
+IAudioSessionManager2 + ISimpleAudioVolume y NO usa IChannelAudioVolume. Por eso:
+
+  - maestro -> sigue siendo del mod (slider del overlay, Ctrl +/-, watchdog).
+               El servicio NUNCA lo escribe, solo lo lee para informar.
+  - canal   -> es del servicio. Es la "ganancia inmersiva": 1.0 en cabina,
+               exterior_pct/100 fuera.
+
+Resultado: cero carreras, cero parpadeos y ninguna limitacion sobre cuando se
+puede tocar el volumen. Ahora se puede ajustar tambien en camara exterior.
+
+
+================================================================================
+3. DETECCION DE CAMARA
+================================================================================
+Se lee el controls.sii del perfil usado por ultima vez (el de profile.sii mas
+reciente) y se extraen los bindings reales:
+
+    mix cam1 `keyboard.key1?0 | semantical.cam1?0`   -> INTERIOR
+    mix cam2..cam8                                    -> EXTERIOR
+    mix camdbg `keyboard.key0?0`                      -> EXTERIOR (camara libre)
+    mix j_tr_cam_swi `modifier(no_modifier, keyboard.c?0)` -> ciclo de camara
+
+Si el jugador reasigno teclas, se respeta su asignacion. Si no hay controls.sii
+legible se usan los bindings de fabrica.
+
+La tecla de ciclo (C por defecto) avanza 1->2->...->8->1 sobre el modelo interno.
+Si en algun momento se desincroniza del juego, pulsar una tecla de camara directa
+(1..8) lo resincroniza al instante.
+
+El hook solo reacciona cuando ATS es la ventana en primer plano: escribir un "2"
+en el chat de otra aplicacion no baja la musica.
+
+CONVIVENCIA CON EL CURSOR F8 (anadido el 2026-08-28)
+--------------------------------------------------------------------------------
+Mientras el cursor multimedia esta activo, dxgi.dll se queda con el teclado del
+juego y lo reenvia a la pagina (ver "[WV2-KB-POLL] bloqueio teclado" en
+lucidgfx.log): escribir una URL de YouTube o buscar en Spotify manda esas teclas
+al WebView, no a ATS. Nuestro hook de bajo nivel las veia igualmente, asi que
+teclear un "2" bajaba la musica sin que la camara hubiese cambiado.
+
+El servicio ahora refleja ese estado: pulsar la tecla de interaccion alterna un
+flag interno y, mientras esta activo, las teclas de camara se ignoran. La tecla
+no esta codificada a fuego: se lee de [Hotkeys] hotkey_interact en el
+lucidgfx_settings.ini que hay junto a amtrucks.exe, de modo que si el usuario la
+reasigna desde el overlay el servicio la sigue solo. El overlay muestra el
+estado como "Cursor activo - teclas de camara en pausa".
+
+LIMITACION CONOCIDA: no se detecta el cambio de camara hecho con los botones de
+un volante o mando (semantical.camcycle). Se eligio el hook de teclado por ser el
+metodo mas fiable y ligero. Si en el futuro hace falta, se anadiria lectura de
+joystick con pygame en el mismo servicio.
+
+
+================================================================================
+4. CONFIGURACION
+================================================================================
+Overlay del mod -> pestana Config -> "Audio Inmersivo 3D por Camara":
+
+  - Activar audio inmersivo      : encender / apagar la funcion
+  - Volumen en camara exterior   : 0-60% (por defecto 0% = inaudible)
+  - Estado del servicio          : en vivo, indica que esta pasando
+
+Estados posibles:
+  Servicio no iniciado             el .exe no esta corriendo
+  Listo - esperando a ATS          servicio activo, juego cerrado
+  Sin audio - abre Spotify/YouTube no hay sesiones de audio todavia
+  En cabina - volumen pleno        estas en camara 1
+  Camara N - silenciado            estas en camara exterior con exterior_pct=0
+  Camara N - atenuado al X%        estas en camara exterior con exterior_pct>0
+  Cursor activo - camara en pausa  el F8 tiene el teclado, no se lee la camara
+
+El overlay habla con el servicio por HTTP en 127.0.0.1:48221. La configuracion se
+guarda en:
+    %APPDATA%\MULTIMEDIA ATS SANTI\audio_inmersivo.json
+Y el registro de actividad en:
+    %APPDATA%\MULTIMEDIA ATS SANTI\audio_inmersivo.log
+
+
+================================================================================
+5. INSTALACION Y ARRANQUE
+================================================================================
+El instalador (MULTIMEDIA ATS SANTI.exe) despliega mmats_audio_inmersivo.exe
+junto a amtrucks.exe en bin\win_x64, lo registra en
+
+    HKCU\Software\Microsoft\Windows\CurrentVersion\Run
+    valor: "MULTIMEDIA ATS SANTI - Audio Inmersivo"
+
+y lo arranca en el momento, sin necesidad de reiniciar Windows.
+
+Se usa HKCU y no HKLM a proposito: no requiere permisos de administrador. El
+servicio se queda dormido (comprobacion cada 2 s, consumo despreciable) mientras
+amtrucks.exe no este en marcha.
+
+La desinstalacion detiene el proceso, borra la clave del registro y elimina el
+.exe. Un mutex con nombre (Global\MMATS_AUDIO_INMERSIVO) impide que dos copias
+se peleen por el volumen.
+
+Pase lo que pase al cerrar (juego cerrado, servicio detenido, error), el volumen
+se restaura al nivel base: nunca se deja al usuario con la musica al 12%.
+
+
+================================================================================
+6. DIAGNOSTICO
+================================================================================
+    mmats_audio_inmersivo.exe --diagnostico
+
+Imprime la configuracion, el perfil de ATS detectado, el mapa de teclas leido de
+controls.sii, si el juego esta corriendo y las sesiones de audio encontradas.
+
+    python mmats_audio_inmersivo.py --consola
+
+Ejecuta el servicio mostrando el log por pantalla.
+
+
+================================================================================
+7. ARCHIVOS TOCADOS
+================================================================================
+NUEVOS
+  mmats_audio_inmersivo.py     Servicio completo (deteccion + WASAPI + HTTP)
+  mmats_audio_inmersivo.spec   Empaquetado PyInstaller del servicio
+  AUDIO_INMERSIVO_3D.txt       Este documento
+
+MODIFICADOS (2026-08-28)
+  mmats_audio_inmersivo.py             IChannelAudioVolume en vez de
+                                       ISimpleAudioVolume; PID del juego
+                                       cacheado; espejo del cursor F8;
+                                       exterior_pct por defecto 0
+  MENU_EXTRAIDO/lucidgfx_overlay.html  Estados "silenciado" y "cursor activo"
+  MENU_EXTRAIDO/overlay_script.js      Idem (espejo)
+
+MODIFICADOS (2026-08-20)
+  MENU_EXTRAIDO/lucidgfx_overlay.html  Panel de control real (toggle, slider,
+                                       estado en vivo) + cliente HTTP
+  MENU_EXTRAIDO/overlay_script.js      Espejo del script inline anterior
+  MENU_EXTRAIDO/lucidgfx_home.html     Eliminado el codigo muerto de reverb y el
+                                       callback fantasma _lgfxOnCameraChange
+  MENU_EXTRAIDO/home_script.js         Idem, con la explicacion de por que
+  MENU_EXTRAIDO/split.html             Eliminado el relay del callback fantasma
+  installer_app.py                     Despliegue, autoarranque y desinstalacion
+                                       del servicio
+  build_multimedia_ats_santi.py        Comprobacion de capacidad en .rdata antes
+                                       de inyectar (ver punto 8)
+  MULTIMEDIA ATS SANTI.spec            Empaqueta el servicio dentro del instalador
+  requirements.txt                     pycaw, comtypes, psutil
+
+NOTA: los archivos .js de MENU_EXTRAIDO son copias de trabajo. Lo que se inyecta
+en dxgi.dll son los 5 HTML con el script ya embebido. Si editas un .js, replica
+el cambio en su HTML o no tendra ningun efecto.
+
+
+================================================================================
+8. FALLO PREEXISTENTE CORREGIDO EN EL BUILD
+================================================================================
+build_multimedia_ats_santi.py inyectaba los HTML en huecos de tamano fijo dentro
+de .rdata sin comprobar que cupieran. Si un HTML crecia mas que su hueco, la
+escritura pisaba el recurso siguiente y el mod arrancaba con una pantalla en
+blanco, sin ningun error visible.
+
+El margen real es ajustado: chat.html solo tiene 165 bytes libres.
+
+Ahora el script calcula el limite de cada bloque (inicio del siguiente, o fin de
+seccion para el ultimo), lo imprime y aborta con un mensaje claro si algo no cabe.
+
+Ocupacion actual:
+    lucidgfx_home.html      41221 / 41264     (43 libres)  <-- AL LIMITE
+    lucidgfx_overlay.html   37510 / 75360  (37850 libres)
+    chat.html               22187 / 22224     (37 libres)  <-- AL LIMITE
+    split.html               4531 /  6912   (2381 libres)
+    lucidgfx_gps.html        2780 /  2976    (196 libres)
+
+AVISO: lucidgfx_home.html y chat.html estan practicamente llenos. Antes de
+anadir nada a esas dos paginas hay que liberar sitio (minificar el CSS/JS
+inline) o el build abortara con el mensaje de desbordamiento.
+
+
+================================================================================
+9. VERIFICACIONES REALIZADAS
+================================================================================
+[OK] controls.sii del perfil real 'realmap' parseado: interior=key1,
+     exterior=key0/key2..key8, ciclo=c
+[OK] Maquina de estados de camara probada con secuencia de teclas, incluido el
+     ciclo con C y el caso de ATS sin foco
+[OK] Lectura, escritura, fundido ease-in-out y restauracion de volumen WASAPI
+     probados contra una sesion de audio real
+[OK] mmats_audio_inmersivo.exe empaquetado arranca y enumera sesiones (comtypes
+     y pycaw resueltos correctamente por PyInstaller)
+[OK] Servidor HTTP responde GET /estado y POST /config; la configuracion persiste
+[OK] Hook de teclado se instala sin errores
+[OK] Sintaxis de los 5 HTML inyectados y de los 2 .js espejo validada con node
+[OK] Los 5 recursos caben en .rdata y se descifran byte a byte identicos desde
+     la dxgi.dll generada
+[OK] El instalador compilado contiene el servicio, la DLL y MENU_EXTRAIDO
+
+[OK] 2026-08-28: comprobado contra una sesion de audio real que escribir
+     ISimpleAudioVolume (lo que hace el watchdog del mod) NO altera el valor de
+     IChannelAudioVolume, y viceversa: la carrera esta eliminada por diseno, no
+     mitigada
+[OK] 2026-08-28: ControlAudio probado contra una sesion real - aplicar/soltar,
+     idempotencia (0 llamadas COM si el valor no cambia), reaplicacion forzada
+     al aparecer sesiones nuevas y 20 cambios de camara seguidos sin deriva
+[OK] 2026-08-28: mmats_audio_inmersivo.exe reempaquetado y verificado con
+     --diagnostico (muestra maestro x ganancia = efectivo)
+
+PENDIENTE DE PRUEBA EN JUEGO: queda confirmar en ATS con la tablet sonando que
+ya no se oye el pitido de un segundo en camara exterior.
+================================================================================

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GPS Mode</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+body {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+  user-select: none; cursor: default; color: #fff;
+}
+
+/* Barra de navegação na parte inferior */
+#nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 8px 16px;
+  background: linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.6));
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.nav-btn:hover {
+  background: rgba(100,150,255,0.3);
+  border-color: rgba(100,150,255,0.5);
+}
+.nav-btn:active {
+  transform: scale(0.95);
+}
+.nav-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Indicador de modo GPS */
+#gps-indicator {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(0,0,0,0.6);
+  border-radius: 6px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.7);
+}
+#gps-indicator svg {
+  width: 14px;
+  height: 14px;
+  fill: #4CAF50;
+}
+</style>
+</head>
+<body>
+
+<!-- Indicador no topo -->
+<div id="gps-indicator">
+  <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+  <span>Modo GPS do Jogo</span>
+</div>
+
+<!-- Barra de navegação inferior -->
+<div id="nav-bar">
+  <button class="nav-btn" onclick="goHome()">
+    <svg viewBox="0 0 24 24" fill="white"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+    <span>Voltar ao Menu</span>
+  </button>
+</div>
+
+<script>
+function goHome() {
+  // Desativar modo GPS e voltar para home
+  var f = document.createElement('iframe');
+  f.style.display = 'none';
+  f.src = 'lucidgfx://action/showgps/off';
+  document.body.appendChild(f);
+  setTimeout(function() { 
+    f.remove(); 
+    window.location.href = 'lucidgfx://home/';
+  }, 50);
+}
+
+// Inicializar: ativar modo GPS
+(function() {
+  var f = document.createElement('iframe');
+  f.style.display = 'none';
+  f.src = 'lucidgfx://action/showgps/on';
+  document.body.appendChild(f);
+  setTimeout(function() { f.remove(); }, 100);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MULTIMEDIA ATS SANTI</title>
+<link rel="stylesheet" href="overlay_styles.css">
+<style>
+/* Reset global y diseño visual MULTIMEDIA ATS SANTI */
+:root {
+  --font-base: system-ui, -apple-system, "Segoe UI", Roboto, "Inter", Arial, sans-serif;
+  --panel-bg: rgba(9, 14, 30, 0.98);
+  --panel-header: rgba(16, 25, 52, 0.85);
+  --card-bg: rgba(16, 26, 52, 0.65);
+  --card-bg-hover: rgba(22, 36, 72, 0.85);
+  --card-border: rgba(56, 189, 248, 0.18);
+  --card-border-hover: rgba(56, 189, 248, 0.5);
+  --accent-cyan: #38bdf8;
+  --accent-blue: #3b82f6;
+  --accent-amber: #f59e0b;
+  --accent-green: #10b981;
+  --accent-red: #ef4444;
+  --accent-purple: #8b5cf6;
+  --text-main: #f8fafc;
+  --text-dim: #cbd5e1;
+  --text-muted: #64748b;
+}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+button {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s ease;
+}
+html, body {
+  width: 100%; height: 100%;
+  background: #FF00FF; /* Backdrop magenta para recorte DirectX 11 */
+  overflow: hidden;
+  font-family: var(--font-base);
+  color: var(--text-main);
+  user-select: none;
+  cursor: default;
+  font-size: 13px;
+}
+#bd { position: fixed; inset: 0; background: #FF00FF; }
+#panel {
+  position: absolute;
+  left: calc(50% - 340px);
+  top: calc(50% - 240px);
+  width: 680px;
+  min-width: 440px;
+  min-height: 340px;
+  max-height: 88vh;
+  background: var(--panel-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.05), 0 0 24px rgba(56,189,248,0.2);
+  overflow: hidden;
+  resize: both;
+  transform-origin: center center;
+  will-change: transform, left, top;
+  display: flex;
+  flex-direction: column;
+}
+#panel::after {
+  content: ''; position: absolute; right: 4px; bottom: 4px;
+  width: 12px; height: 12px;
+  background: linear-gradient(135deg, transparent 50%, rgba(56,189,248,0.4) 50%);
+  border-radius: 0 0 10px 0; pointer-events: none;
+}
+#title {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--panel-header);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+  cursor: move; flex-shrink: 0;
+}
+#logo {
+  font-size: 14px; font-weight: 800; letter-spacing: 1.5px;
+  color: var(--accent-cyan);
+  text-shadow: 0 0 14px rgba(56, 189, 248, 0.5);
+  display: flex; align-items: center; gap: 8px;
+}
+#logo span {
+  color: #94a3b8; font-weight: 600; font-size: 10.5px; letter-spacing: 0.5px;
+  background: rgba(56, 189, 248, 0.1); padding: 2px 8px;
+  border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);
+}
+#close {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+  color: #cbd5e1; font-size: 13px; font-weight: 700;
+}
+#close:hover {
+  background: rgba(239, 68, 68, 0.35); border-color: rgba(239, 68, 68, 0.6);
+  color: #fca5a5; transform: scale(1.05);
+}
+#tabs {
+  display: flex; gap: 4px; padding: 8px 18px 0;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.12);
+  background: rgba(6, 10, 22, 0.6); flex-shrink: 0;
+}
+.tab {
+  padding: 8px 22px 10px; font-size: 12.5px; font-weight: 600;
+  color: #94a3b8; border-radius: 8px 8px 0 0;
+  border-bottom: 2px solid transparent; letter-spacing: 0.3px;
+}
+.tab.on {
+  color: var(--accent-cyan); border-bottom-color: var(--accent-cyan);
+  background: rgba(56, 189, 248, 0.08);
+}
+.tab:not(.on):hover { color: #f8fafc; background: rgba(255,255,255,0.04); }
+#content {
+  padding: 18px 22px 24px; min-height: 280px;
+  flex: 1 1 auto; overflow-y: auto; overflow-x: hidden;
+}
+#content::-webkit-scrollbar { width: 5px; }
+#content::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); border-radius: 3px; }
+#content::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.25); border-radius: 3px; }
+#content::-webkit-scrollbar-thumb:hover { background: rgba(56, 189, 248, 0.45); }
+.pane { display: none; }
+.pane.on { display: block; animation: fadeInPane 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes fadeInPane { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.sh {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 1.6px;
+  text-transform: uppercase; color: rgba(56, 189, 248, 0.7); margin-bottom: 12px;
+}
+.sep { height: 1px; background: rgba(56, 189, 248, 0.1); margin: 16px 0; }
+.dev-card {
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;
+  transition: all 0.2s ease;
+}
+.dev-card:hover { background: var(--card-bg-hover); border-color: var(--card-border-hover); }
+.dev-name { font-weight: 700; font-size: 13.5px; color: var(--text-main); margin-bottom: 4px; }
+.dev-info { color: var(--text-dim); font-size: 12px; }
+.btn-row { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
+.btn {
+  padding: 9px 22px; font-size: 12.5px; font-weight: 700;
+  border-radius: 8px; letter-spacing: 0.4px; border: 1px solid transparent;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.btn:active { transform: scale(0.97); }
+.btn-green {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: rgba(16, 185, 129, 0.4); color: #ffffff;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+}
+.btn-green:hover {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+}
+.btn-red {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border-color: rgba(239, 68, 68, 0.4); color: #ffffff;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+}
+.btn-red:hover {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+}
+.btn-blue {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-color: rgba(59, 130, 246, 0.4); color: #ffffff;
+}
+.btn-blue:hover { background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%); }
+.row { display: flex; align-items: center; margin-bottom: 12px; gap: 10px; }
+.rlbl { min-width: 140px; color: var(--text-dim); font-size: 12px; }
+.rctl { flex: 1; }
+input[type=range] {
+  width: 100%; height: 4px; cursor: pointer; outline: none; -webkit-appearance: none;
+  background: rgba(56, 189, 248, 0.2); border-radius: 2px;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%;
+  background: var(--accent-cyan); box-shadow: 0 0 10px rgba(56,189,248,0.7);
+  cursor: pointer; transition: transform 0.1s;
+}
+input[type=range]:active::-webkit-slider-thumb { transform: scale(1.3); }
+.zoom-row { display: flex; align-items: center; gap: 8px; }
+.zoom-btn {
+  width: 30px; height: 30px; border-radius: 6px;
+  background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.25);
+  color: var(--accent-cyan); font-size: 16px; font-weight: 700;
+}
+.zoom-btn:hover { background: rgba(56, 189, 248, 0.25); border-color: var(--accent-cyan); }
+.zoom-btn.on { background: rgba(56, 189, 248, 0.42); border-color: var(--accent-cyan); color: #f8fafc; box-shadow: 0 0 10px rgba(56,189,248,0.45); }
+.zoom-btn.wide { width: auto; padding: 0 10px; font-size: 12px; }
+.zoom-input {
+  width: 65px; padding: 6px 8px; text-align: center;
+  background: rgba(16, 26, 52, 0.8); border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 6px; color: var(--accent-cyan); font-size: 13px; font-weight: 700;
+  outline: none;
+}
+.hash-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 10px; }
+.hash-card {
+  background: linear-gradient(135deg, rgba(16,26,52,0.85) 0%, rgba(10,16,35,0.95) 100%);
+  border: 1px solid var(--card-border); border-radius: 10px; padding: 12px 14px;
+  position: relative; overflow: hidden; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+.hash-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, #38bdf8 0%, #3b82f6 100%);
+}
+.hash-card:hover {
+  transform: translateY(-2px); border-color: var(--accent-cyan);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 20px rgba(56,189,248,0.25);
+}
+.hash-card.active {
+  border-color: #10b981;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(10, 20, 38, 0.95) 100%);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.35);
+}
+.hash-card.active::before { background: linear-gradient(90deg, #10b981 0%, #34d399 100%); }
+.hash-card.active::after {
+  content: '✓'; position: absolute; top: 10px; right: 10px;
+  width: 20px; height: 20px; border-radius: 50%; background: #10b981;
+  color: #fff; font-size: 11px; font-weight: 800; display: flex;
+  align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.6);
+}
+.hash-card .card-icon { font-size: 22px; margin-bottom: 4px; }
+.hash-card .card-name { font-size: 13px; font-weight: 700; color: #f1f5f9; margin-bottom: 2px; }
+.hash-card .card-truck { font-size: 11px; color: #94a3b8; }
+.lic-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.lic-badge {
+  padding: 5px 14px; border-radius: 20px; font-size: 11px; font-weight: 800;
+  letter-spacing: 0.5px; text-transform: uppercase;
+}
+.lic-badge.ok {
+  background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #34d399;
+}
+.lic-txt { color: var(--text-dim); font-size: 12.5px; }
+.hk-row { display: flex; align-items: center; margin-bottom: 10px; gap: 10px; }
+.hk-lbl { min-width: 140px; color: var(--text-dim); font-size: 12px; }
+.hk-btn {
+  padding: 6px 14px; min-width: 90px; text-align: center;
+  background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 6px; color: var(--accent-cyan); font-size: 12px; font-weight: 700;
+}
+.hk-btn:hover { background: rgba(56, 189, 248, 0.25); border-color: var(--accent-cyan); }
+.hk-btn.recording { background: rgba(245, 158, 11, 0.25); border-color: var(--accent-amber); color: #fbbf24; }
+#footer {
+  padding: 10px 22px; border-top: 1px solid rgba(56, 189, 248, 0.12);
+  background: rgba(6, 10, 22, 0.7); display: flex; align-items: center;
+  justify-content: space-between; flex-shrink: 0;
+}
+.fdot {
+  width: 7px; height: 7px; border-radius: 50%; background: #10b981;
+  display: inline-block; margin-right: 8px; box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+}
+.ftxt { font-size: 11.5px; color: #94a3b8; }
+</style>
+</head>
+<body>
+<div id="bd">
+<div id="panel">
+
+  <!-- Barra Superior -->
+  <div id="title">
+    <div id="logo">
+      MULTIMEDIA ATS SANTI <span id="hdr-ver">v2.0 OFICIAL</span>
+    </div>
+    <button id="close" onmousedown="closeMenu()">&#x2715;</button>
+  </div>
+
+  <!-- Pestañas Principales -->
+  <div id="tabs">
+    <button class="tab on" id="t-mm" onmousedown="tab('mm')">Multimedia</button>
+    <button class="tab" id="t-cfg" onmousedown="tab('cfg')">Configuración</button>
+    <button class="tab" id="t-lic" onmousedown="tab('lic')">Licencia</button>
+    <button class="tab" id="t-dbg" onmousedown="tab('dbg')" style="display:none;color:#f59e0b;">Diagnóstico</button>
+  </div>
+
+  <!-- Contenedor de Pestañas -->
+  <div id="content">
+
+    <!-- PESTAÑA: MULTIMEDIA -->
+    <div class="pane on" id="p-mm">
+      <div id="mm-normal">
+        <p class="sh">Control de Reproducción</p>
+        <div class="btn-row" id="mm-controls">
+          <button class="btn btn-green" id="btn-iniciar" onmousedown="mmStart()">&#9658; INICIAR MULTIMEDIA</button>
+          <button class="btn btn-red" id="btn-parar" onmousedown="mmStop()" style="display:none;">&#9632; DETENER MULTIMEDIA</button>
+        </div>
+        <div id="mm-alert" style="display:none; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.45); border-radius:8px; padding:10px 14px; margin-bottom:12px; color:#fbbf24; font-size:12px;"></div>
+        
+        <p class="sh">Estado Actual</p>
+        <div id="mm-status" class="dev-card">
+          <div class="dev-name" id="mm-status-title">⏸ Detenido</div>
+          <div class="dev-info" id="mm-status-info">Haz clic en INICIAR para activar la pantalla multimedia en cabina.</div>
+        </div>
+
+        <div class="sep"></div>
+
+        <p class="sh">Zoom del Navegador</p>
+        <div class="row">
+          <span class="rlbl">Escala Visual</span>
+          <div class="rctl">
+            <div class="zoom-row">
+              <button class="zoom-btn" onmousedown="zoomAdj(-10)">-</button>
+              <input type="number" class="zoom-input" id="zoom-val" value="200" min="10" max="500" onchange="zoomSet(this.value)">
+              <span style="color:#94a3b8;font-size:12px;font-weight:600;">%</span>
+              <button class="zoom-btn" onmousedown="zoomAdj(10)">+</button>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <span class="rlbl"></span>
+          <div class="rctl">
+            <input type="range" id="s-zoom" min="10" max="500" value="200" oninput="zoomSlider(this.value)">
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <p class="sh">Volumen Multimedia</p>
+        <div class="row">
+          <span class="rlbl">Nivel de Audio</span>
+          <div class="rctl">
+            <div class="zoom-row">
+              <button class="zoom-btn" onmousedown="volAdj(-10)">-</button>
+              <span class="zoom-input" id="vol-val" style="text-align:center;">100%</span>
+              <button class="zoom-btn" onmousedown="volAdj(10)">+</button>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <span class="rlbl" style="color:#94a3b8;font-size:11.5px;">Válido para YouTube, Spotify, Twitch, Netflix (Atajo: Ctrl +/-)</span>
+          <div class="rctl">
+            <input type="range" id="s-vol" min="0" max="100" value="100" oninput="volLabel(this.value)" onchange="volSlider(this.value)">
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <p class="sh">Dispositivos Reconocidos en Cabina</p>
+        <div class="hash-cards" id="hash-list"></div>
+
+        <div class="sep"></div>
+
+        <p class="sh">Pantalla que se Pinta en Cabina</p>
+        <div class="row">
+          <span class="rlbl">Ocurrencia de la pantalla<br><span style="color:#64748b;font-size:10.5px;">Si el contenido sale tambi&eacute;n en el tac&oacute;metro es que el cami&oacute;n usa la misma textura para las dos. Elige cu&aacute;l se pinta: prueba <b>1</b> y, si se pinta la equivocada, <b>2</b>.</span></span>
+          <div class="rctl"><div id="hit-btns" class="zoom-row" style="flex-wrap:wrap;justify-content:flex-end;"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PESTAÑA: CONFIGURACIÓN -->
+    <div class="pane" id="p-cfg">
+      <p class="sh">Teclas de Atajo</p>
+      <div class="hk-row"><span class="hk-lbl">Abrir Menú</span><button class="hk-btn" id="hk-menu" onmousedown="hkRecord('menu')">Page Up</button></div>
+      <div class="hk-row"><span class="hk-lbl">Mouse Multimedia</span><button class="hk-btn" id="hk-mouse" onmousedown="hkRecord('mouse')">F8</button></div>
+      <div class="hk-row"><span class="hk-lbl">Aumentar Zoom</span><button class="hk-btn" id="hk-zoomin" onmousedown="hkRecord('zoomin')">Num +</button></div>
+      <div class="hk-row"><span class="hk-lbl">Disminuir Zoom</span><button class="hk-btn" id="hk-zoomout" onmousedown="hkRecord('zoomout')">Num -</button></div>
+      <div class="hk-row"><span class="hk-lbl">GPS Pantalla Completa</span><button class="hk-btn" id="hk-gps" onmousedown="hkRecord('gps')">Page Down</button></div>
+      <div class="hk-row"><span class="hk-lbl">Subir Volumen</span><button class="hk-btn" id="hk-volup" onmousedown="hkRecord('volup')">Ctrl + =</button></div>
+      <div class="hk-row"><span class="hk-lbl">Bajar Volumen</span><button class="hk-btn" id="hk-voldown" onmousedown="hkRecord('voldown')">Ctrl + -</button></div>
+
+      <div class="sep"></div>
+
+      <p class="sh">Sensibilidad del Cursor (F8)</p>
+      <div class="row">
+        <span class="rlbl">Velocidad del cursor</span>
+        <div class="rctl" style="display:flex;align-items:center;gap:8px;">
+          <input type="range" id="s-sens" min="30" max="200" value="100" oninput="sensSet(this.value)">
+          <span id="sens-val" style="color:var(--accent-cyan);font-size:12px;font-weight:700;min-width:38px;text-align:right;">1.0x</span>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <p class="sh">Color del Puntero</p>
+      <div class="row">
+        <span class="rlbl">Color de la bolinha (F8)</span>
+        <div class="rctl"><div id="mouse-colors" style="display:flex;flex-wrap:wrap;gap:8px;"></div></div>
+      </div>
+
+      <div class="sep"></div>
+
+      <p class="sh">Comportamiento en Cabina</p>
+      <div class="row">
+        <span class="rlbl">Apagar pantalla al apagar camión<br><span style="color:#64748b;font-size:10.5px;">Pausa y apaga la pantalla cuando el motor está apagado</span></span>
+        <div class="rctl"><input type="checkbox" id="pg-toggle" checked onchange="powerGateSet(this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:#38bdf8;"></div>
+      </div>
+      <div class="row">
+        <span class="rlbl">Aviso "Mouse activo" en pantalla<br><span style="color:#64748b;font-size:10.5px;">Muestra un aviso mientras el mouse está capturado en la tablet</span></span>
+        <div class="rctl"><input type="checkbox" id="mh-toggle" checked onchange="mouseHintSet(this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:#38bdf8;"></div>
+      </div>
+
+      <div class="sep"></div>
+
+      <p class="sh">🔊 Audio Inmersivo 3D por Cámara</p>
+      <div class="row">
+        <span class="rlbl">Activar audio inmersivo<br><span style="color:#64748b;font-size:10.5px;">En cabina suena al volumen pleno. Al salir a una cámara exterior la música se aleja, como si sonara dentro del camión.</span></span>
+        <div class="rctl"><input type="checkbox" id="immersive-toggle" onchange="immersiveToggleSet(this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:#38bdf8;"></div>
+      </div>
+      <div class="row">
+        <span class="rlbl">Volumen en cámara exterior<br><span style="color:#64748b;font-size:10.5px;">0 % = inaudible desde fuera. Súbelo si prefieres oírla lejana.</span></span>
+        <div class="rctl" style="display:flex;align-items:center;gap:8px;">
+          <input type="range" id="s-immersive" min="0" max="60" value="0" oninput="immersiveLevelLabel(this.value)" onchange="immersiveLevelSet(this.value)">
+          <span id="immersive-val" style="color:var(--accent-cyan);font-size:12px;font-weight:700;min-width:38px;text-align:right;">0%</span>
+        </div>
+      </div>
+      <div class="row">
+        <span class="rlbl">Estado del servicio</span>
+        <div class="rctl"><span id="immersive-status" style="font-size:11.5px;font-weight:700;color:#64748b;">Comprobando…</span></div>
+      </div>
+
+      <div class="sep"></div>
+
+      <!-- SECCIÓN FONDO PERSONALIZADO -->
+      <p class="sh">Fondo Personalizado</p>
+      <div class="row">
+        <span class="rlbl">Imagen de Fondo<br><span style="color:#64748b;font-size:10.5px;">Formatos: JPG, JPEG, PNG, WEBP</span></span>
+        <div class="rctl" style="display:flex;flex-direction:column;gap:8px;">
+          <input type="file" id="bg-file-input" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" style="display:none;" onchange="onCustomBgSelected(event)">
+          <div style="display:flex;gap:8px;">
+            <button id="bg-pick" onmousedown="triggerCustomBgPicker()" class="btn btn-blue" style="padding:7px 14px;font-size:12px;">🖼️ Cambiar fondo...</button>
+            <button id="bg-clear" onmousedown="restoreDefaultBg()" class="btn" style="padding:7px 14px;font-size:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:#cbd5e1;">↺ Restaurar fondo predeterminado</button>
+          </div>
+          <span id="bg-status" style="font-size:11px;color:#38bdf8;min-height:14px;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PESTAÑA: LICENCIA GLOBAL -->
+    <div class="pane" id="p-lic">
+      <p class="sh">Estado de Licencia Global</p>
+      <div class="dev-card" style="border-color:rgba(16,185,129,0.35);background:rgba(16,185,129,0.08);">
+        <div class="lic-row">
+          <span class="lic-badge ok" id="lic-badge">ACTIVADA (PERMANENTE)</span>
+          <span class="lic-txt" id="lic-msg" style="color:#f8fafc;font-weight:600;">Licencia Oficial Universal MULTIMEDIA ATS SANTI</span>
+        </div>
+        <div style="font-size:12px;color:#cbd5e1;line-height:1.6;margin-top:6px;">
+          <div><b>Estado:</b> <span style="color:#34d399;">Activada para todos los usuarios</span></div>
+          <div><b>Clave Global:</b> <span style="color:#38bdf8;font-family:monospace;letter-spacing:1px;">MMATS-SANTI-2026-UNIVERSAL</span></div>
+          <div><b>Tipo:</b> Activación Universal Offline Permanente (Sin límites)</div>
+          <div><b>Plataformas:</b> YouTube, Spotify, Twitch, Netflix, GPS, Chat en Vivo, Fondos Personalizados</div>
+        </div>
+      </div>
+      <div class="sep"></div>
+      <p class="sh">Información del Sistema</p>
+      <div class="ftxt" style="line-height:1.6;color:#94a3b8;">
+        MULTIMEDIA ATS SANTI v2.0 • Edición Oficial 2026<br>
+        DirectX 11 Hook Engine & Microsoft Edge WebView2<br>
+        Compatible con American Truck Simulator (x64)
+      </div>
+    </div>
+
+    <!-- PESTAÑA: DIAGNÓSTICO -->
+    <div class="pane" id="p-dbg">
+      <p class="sh">Diagnóstico de Render Targets</p>
+      <div id="dbg-rt-list"></div>
+    </div>
+
+  </div>
+
+  <!-- Pie de Página -->
+  <div id="footer">
+    <div>
+      <span class="fdot"></span>
+      <span class="ftxt" id="fstatus">MULTIMEDIA ATS SANTI activo</span>
+    </div>
+    <span class="ftxt">Presiona <b>Re Pág</b> o <b>F8</b> para alternar</span>
+  </div>
+
+</div>
+</div>
+
+<script>
+// Ajuste de escalado DPI para WebView2
+(function() {
+  var dpr = window.devicePixelRatio || 1;
+  var panel = document.getElementById('panel');
+  if (panel && dpr > 1) {
+    panel.style.transform = 'scale(' + (1 / dpr).toFixed(6) + ')';
+  }
+  window._lucidDPR = dpr;
+})();
+
+// Comunicación Bridge con host C++
+function postMsg(obj) {
+  if (window.chrome && window.chrome.webview) {
+    window.chrome.webview.postMessage(obj);
+  }
+}
+
+var state = {
+  mmRunning: false,
+  mmUrl: '',
+  zoom: 200,
+  mouse_color: '#FFFFFF',
+  rtHash: '6E445921D4FBB174',
+  hitIndex: 1
+};
+
+var DEVICES = [
+  {hash:'6E445921D4FBB174', icon:'📺', name:'Multimedia Central', info:'Volvo FH5/FH6, Scania'},
+  {hash:'5891A3883361780B', icon:'🗺️', name:'GPS Parabrisas', info:'Genérico ATS'},
+  {hash:'F778E70824018E0B', icon:'📱', name:'GPS Móvil', info:'Genérico ATS'},
+  {hash:'E2A0D7B1DF649166', icon:'🖥️', name:'Multimedia Compacta', info:'Scania (Mod)'}
+];
+
+// Cambio de Pestañas
+var TABS = ['mm', 'cfg', 'lic', 'dbg'];
+function tab(id) {
+  TABS.forEach(function(t) {
+    var btn = document.getElementById('t-' + t);
+    var pne = document.getElementById('p-' + t);
+    if (btn) btn.className = 'tab' + (t === id ? ' on' : '');
+    if (pne) pne.className = 'pane' + (t === id ? ' on' : '');
+  });
+  if (id === 'lic' || id === 'cfg') postMsg({action:'licensequery'});
+}
+
+function closeMenu() {
+  postMsg({action:'close'});
+}
+
+document.getElementById('bd').addEventListener('click', function(e) {
+  if (e.target === this) closeMenu();
+});
+
+// Control Multimedia
+function mmStart() {
+  var alertEl = document.getElementById('mm-alert');
+  if (!state.rtHash || state.rtHash === '0000000000000000') {
+    state.rtHash = '6E445921D4FBB174';
+  }
+  if (alertEl) alertEl.style.display = 'none';
+  postMsg({action:'startMm', hash:state.rtHash});
+  hitSend();
+  setMmRunning(true, 'lucidgfx_home.html');
+}
+
+function mmStop() {
+  postMsg({action:'stopMm'});
+  setMmRunning(false, '');
+}
+
+function setMmRunning(running, url) {
+  state.mmRunning = running;
+  state.mmUrl = url || '';
+  var btn1 = document.getElementById('btn-iniciar');
+  var btn2 = document.getElementById('btn-parar');
+  var title = document.getElementById('mm-status-title');
+  var info = document.getElementById('mm-status-info');
+  var fstatus = document.getElementById('fstatus');
+  if (running) {
+    if (btn1) btn1.style.display = 'none';
+    if (btn2) btn2.style.display = '';
+    if (title) title.textContent = '▶ En reproducción activa';
+    if (info) info.textContent = 'Pantalla multimedia transmitiendo a la cabina.';
+    if (fstatus) fstatus.textContent = 'Multimedia en transmisión';
+  } else {
+    if (btn1) btn1.style.display = '';
+    if (btn2) btn2.style.display = 'none';
+    if (title) title.textContent = '⏸ Detenido';
+    if (info) info.textContent = 'Haz clic en INICIAR para activar la pantalla multimedia en cabina.';
+    if (fstatus) fstatus.textContent = 'MULTIMEDIA ATS SANTI activo';
+  }
+  updateSourceCards();
+}
+
+// Control de Zoom
+function zoomAdj(delta) {
+  var inp = document.getElementById('zoom-val');
+  var sl = document.getElementById('s-zoom');
+  var v = Math.max(10, Math.min(500, parseInt((inp ? inp.value : 200), 10) + delta));
+  if (inp) inp.value = v;
+  if (sl) sl.value = v;
+  postMsg({action:'setZoom', val:v});
+}
+
+function zoomSet(v) {
+  var val = Math.max(10, Math.min(500, parseInt(v, 10) || 200));
+  var inp = document.getElementById('zoom-val');
+  var sl = document.getElementById('s-zoom');
+  if (inp) inp.value = val;
+  if (sl) sl.value = val;
+  postMsg({action:'setZoom', val:val});
+}
+
+function zoomSlider(v) {
+  var val = parseInt(v, 10) || 200;
+  var inp = document.getElementById('zoom-val');
+  if (inp) inp.value = val;
+  postMsg({action:'setZoom', val:val});
+}
+
+// Control de Volumen
+function volAdj(delta) {
+  var vs = document.getElementById('s-vol');
+  var cur = vs ? parseInt(vs.value, 10) : 100;
+  if (!Number.isFinite(cur)) cur = 100;
+  var v = Math.max(0, Math.min(100, cur + delta));
+  try { localStorage.setItem('mmats_audio_volume', String(v)); } catch(e){} // preferencia bruta (la home la lee)
+  volSet(v);
+}
+
+function volSet(v) {
+  var val = Math.max(0, Math.min(100, parseInt(v, 10) || 0));
+  var vv = document.getElementById('vol-val');
+  var vs = document.getElementById('s-vol');
+  if (vv) vv.textContent = val + '%';
+  if (vs) vs.value = val;
+  postMsg({action:'setVol', val:val});
+}
+
+function volLabel(v) {
+  var val = Math.max(0, Math.min(100, parseInt(v, 10) || 0));
+  var vv = document.getElementById('vol-val');
+  if (vv) vv.textContent = val + '%';
+}
+
+function volSlider(v) {
+  var val = Math.max(0, Math.min(100, parseInt(v, 10) || 0));
+  try { localStorage.setItem('mmats_audio_volume', String(val)); } catch(e){} // preferencia bruta (la home la lee)
+  volSet(val);
+}
+
+// Sensibilidad del Mouse
+function sensSet(v) {
+  var pct = Math.max(30, Math.min(200, parseInt(v, 10) || 100));
+  var lbl = document.getElementById('sens-val');
+  if (lbl) lbl.textContent = (pct / 100).toFixed(1) + 'x';
+  postMsg({action:'setSetting', key:'mouse_sensitivity', val:pct});
+}
+
+// Color del Cursor
+var MOUSE_COLORS = ['#FFFFFF','#38BDF8','#10B981','#F59E0B','#EF4444','#A855F7','#F43F5E','#000000'];
+function buildMouseColors() {
+  var box = document.getElementById('mouse-colors');
+  if (!box) return;
+  box.innerHTML = '';
+  MOUSE_COLORS.forEach(function(c) {
+    var d = document.createElement('div');
+    d.className = 'msw';
+    d.dataset.color = c;
+    d.style.cssText = 'width:24px;height:24px;border-radius:50%;cursor:pointer;background:' + c +
+      ';border:2px solid rgba(255,255,255,0.18);box-sizing:border-box;transition:all 0.15s;';
+    d.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      mouseColorSet(c);
+    });
+    box.appendChild(d);
+  });
+  highlightMouseColor(state.mouse_color || '#FFFFFF');
+}
+
+function highlightMouseColor(c) {
+  var sel = (c || '').toUpperCase();
+  var els = document.querySelectorAll('#mouse-colors .msw');
+  for (var i = 0; i < els.length; i++) {
+    var on = els[i].dataset.color.toUpperCase() === sel;
+    els[i].style.boxShadow = on ? '0 0 0 2px #38bdf8' : 'none';
+    els[i].style.borderColor = on ? '#38bdf8' : 'rgba(255,255,255,0.18)';
+  }
+}
+
+function mouseColorSet(c) {
+  state.mouse_color = c;
+  highlightMouseColor(c);
+  postMsg({action:'setMouseColor', val:c});
+}
+
+// Ocurrencia del render target que se pinta.
+// El juego puede dibujar varias pantallas de la cabina (multimedia, tacometro,
+// GPS del salpicadero...) sobre el MISMO render target. La DLL cuenta cada
+// ocurrencia dentro del frame y solo pinta la que coincide con este indice;
+// con 0 pinta TODAS, que es justo lo que hacia que el contenido saliera tambien
+// en el tacometro. Se manda con 'dbgHit' y se guarda en multimedia_hit_index.
+// Ojo: 'startMm' y 'selectHash' reponen el valor por defecto de la pantalla, asi
+// que hay que reenviarlo despues de cada uno.
+var HIT_OPTS = [1, 2, 3, 4, 0];
+
+function hitLoad() {
+  var v = 1;
+  try {
+    var raw = localStorage.getItem('mmats_hit_index');
+    if (raw !== null) v = parseInt(raw, 10);
+  } catch (e) {}
+  if (!(v >= 0 && v <= 4)) v = 1;
+  state.hitIndex = v;
+}
+
+function hitSend() {
+  postMsg({action:'dbgHit', val: state.hitIndex});
+}
+
+function hitSet(v) {
+  state.hitIndex = v;
+  try { localStorage.setItem('mmats_hit_index', String(v)); } catch (e) {}
+  postMsg({action:'setSetting', key:'multimedia_hit_index', val: v});
+  hitSend();
+  hitRender();
+}
+
+function hitRender() {
+  var box = document.getElementById('hit-btns');
+  if (!box) return;
+  box.innerHTML = '';
+  HIT_OPTS.forEach(function(v) {
+    var b = document.createElement('button');
+    b.className = 'zoom-btn' + (v === 0 ? ' wide' : '') + (state.hitIndex === v ? ' on' : '');
+    b.textContent = (v === 0 ? 'Todas' : String(v));
+    b.title = (v === 0 ? 'Pinta todas las pantallas que compartan el render target' :
+                         'Pinta solo la ocurrencia ' + v);
+    b.addEventListener('mousedown', function(e) { e.stopPropagation(); hitSet(v); });
+    box.appendChild(b);
+  });
+}
+
+// Dispositivos y Tarjetas
+function selectDevice(dev) {
+  state.rtHash = dev.hash;
+  postMsg({action:'selectHash', hash:dev.hash});
+  hitSend();
+  updateSourceCards();
+}
+
+function buildDeviceCard(dev) {
+  var isActive = state.rtHash === dev.hash;
+  var d = document.createElement('div');
+  d.className = 'hash-card' + (isActive ? ' active' : '');
+  d.id = 'card-' + dev.hash;
+  d.innerHTML =
+    '<div class="card-icon">' + dev.icon + '</div>' +
+    '<div class="card-name">' + dev.name + '</div>' +
+    '<div class="card-truck">' + dev.info + '</div>';
+  d.addEventListener('mousedown', function(e) {
+    e.stopPropagation();
+    selectDevice(dev);
+  });
+  return d;
+}
+
+function updateSourceCards() {
+  var list = document.getElementById('hash-list');
+  if (list) {
+    list.innerHTML = '';
+    DEVICES.forEach(function(d) { list.appendChild(buildDeviceCard(d)); });
+  }
+}
+
+// Gestión de Fondo Personalizado
+function triggerCustomBgPicker() {
+  var input = document.getElementById('bg-file-input');
+  if (input) input.click();
+  postMsg({action:'pickBackground'});
+}
+
+function onCustomBgSelected(event) {
+  var file = event.target.files && event.target.files[0];
+  var st = document.getElementById('bg-status');
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var dataUrl = e.target.result;
+    try {
+      localStorage.setItem('mmats_custom_background', dataUrl);
+      if (st) st.textContent = '✅ Fondo personalizado guardado y aplicado.';
+    } catch(err) {
+      if (st) st.textContent = '✅ Fondo aplicado (en sesión activa).';
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function restoreDefaultBg() {
+  localStorage.removeItem('mmats_custom_background');
+  var st = document.getElementById('bg-status');
+  if (st) st.textContent = 'Fondo predeterminado restaurado.';
+  postMsg({action:'clearBackground'});
+}
+
+// Hotkeys Rebind
+var HK_MAP = {
+  menu: {btn:'hk-menu', key:'hotkey_menu'},
+  mouse: {btn:'hk-mouse', key:'hotkey_interact'},
+  zoomin: {btn:'hk-zoomin', key:'hotkey_zoom_in'},
+  zoomout: {btn:'hk-zoomout', key:'hotkey_zoom_out'},
+  gps: {btn:'hk-gps', key:'hotkey_gps'},
+  volup: {btn:'hk-volup', key:'hotkey_vol_up'},
+  voldown: {btn:'hk-voldown', key:'hotkey_vol_down'}
+};
+
+function vkName(vk) {
+  if (vk === 0) return '—';
+  if (vk >= 112 && vk <= 123) return 'F' + (vk - 111);
+  if (vk >= 48 && vk <= 57) return String(vk - 48);
+  if (vk >= 65 && vk <= 90) return String.fromCodePoint(vk);
+  if (vk >= 96 && vk <= 105) return 'Num ' + (vk - 96);
+  var M = {
+    33:'Page Up', 34:'Page Down', 36:'Home', 35:'End', 45:'Insert', 46:'Delete',
+    9:'Tab', 13:'Enter', 32:'Espacio', 20:'Bloq Mayús', 144:'Bloq Num',
+    19:'Pausa', 189:'-', 187:'=', 106:'Num *', 107:'Num +', 109:'Num -', 110:'Num .', 111:'Num /'
+  };
+  return M[vk] || ('VK ' + vk);
+}
+
+var hkRecording = null;
+function hkRecord(slot) {
+  if (!HK_MAP[slot]) return;
+  if (hkRecording) {
+    var prev = document.getElementById(HK_MAP[hkRecording].btn);
+    if (prev) prev.classList.remove('recording');
+  }
+  hkRecording = slot;
+  var btn = document.getElementById(HK_MAP[slot].btn);
+  if (btn) { btn.classList.add('recording'); btn.textContent = 'Presiona tecla...'; }
+  postMsg({action:'hkRecordStart', key:HK_MAP[slot].key});
+}
+
+function powerGateSet(on) { postMsg({action:'setPowerGate', val: on ? '1' : '0'}); }
+function mouseHintSet(on) { postMsg({action:'setMouseHint', val: on ? '1' : '0'}); }
+
+// =============================================================================
+// AUDIO INMERSIVO 3D POR CÁMARA
+// El trabajo real lo hace el servicio externo mmats_audio_inmersivo.exe: detecta
+// la cámara leyendo controls.sii + hook de teclado, y atenúa las sesiones de
+// audio del WebView2 por WASAPI. Este overlay es solo su panel de control y
+// habla con él por HTTP en 127.0.0.1.
+//   No se hace desde aquí porque al abrir Spotify a pantalla completa la página
+//   del mod se sustituye por la del sitio y cualquier script nuestro muere.
+// =============================================================================
+var IMMERSIVE_URL = 'http://127.0.0.1:48221';
+var _immOnline = false;
+var _immPollTimer = null;
+
+function immersiveAudioOn(){ try{ return localStorage.getItem('mmats_immersive_audio') === '1'; }catch(e){ return false; } }
+
+function _immPost(payload) {
+  // text/plain evita el preflight CORS: el servicio parsea el cuerpo como JSON igual.
+  return fetch(IMMERSIVE_URL + '/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  }).then(function(r){ return r.json(); }).then(_immApply).catch(function(){ _immOffline(); });
+}
+
+function immersiveToggleSet(on) {
+  try { localStorage.setItem('mmats_immersive_audio', on ? '1' : '0'); } catch(e) {}
+  var cb = document.getElementById('immersive-toggle');
+  if (cb) cb.checked = !!on;
+  _immPost({ enabled: !!on });
+}
+
+function immersiveLevelLabel(v) {
+  var el = document.getElementById('immersive-val');
+  if (el) el.textContent = (Math.max(0, Math.min(100, parseInt(v, 10) || 0))) + '%';
+}
+
+function immersiveLevelSet(v) {
+  v = Math.max(0, Math.min(100, parseInt(v, 10) || 0));
+  immersiveLevelLabel(v);
+  try { localStorage.setItem('mmats_immersive_level', String(v)); } catch(e) {}
+  _immPost({ exterior_pct: v });
+}
+
+function _immApply(st) {
+  if (!st || !st.ok) { _immOffline(); return; }
+  _immOnline = true;
+  var cb = document.getElementById('immersive-toggle');
+  if (cb) cb.checked = !!st.enabled;
+  var sl = document.getElementById('s-immersive');
+  if (sl && document.activeElement !== sl) sl.value = st.exterior_pct;
+  immersiveLevelLabel(st.exterior_pct);
+  try {
+    localStorage.setItem('mmats_immersive_audio', st.enabled ? '1' : '0');
+    localStorage.setItem('mmats_immersive_level', String(st.exterior_pct));
+  } catch(e) {}
+
+  var lbl = document.getElementById('immersive-status');
+  if (!lbl) return;
+  if (!st.enabled) {
+    lbl.style.color = '#64748b';
+    lbl.textContent = 'Desactivado';
+  } else if (!st.juego) {
+    lbl.style.color = '#94a3b8';
+    lbl.textContent = 'Listo · esperando a ATS';
+  } else if (!st.sesiones) {
+    lbl.style.color = '#f59e0b';
+    lbl.textContent = 'Sin audio · abre Spotify o YouTube';
+  } else if (st.interact) {
+    // El cursor F8 tiene tomado el teclado: el servicio ignora 1..8 a proposito
+    // para que escribir en la tablet no cambie la camara.
+    lbl.style.color = '#a78bfa';
+    lbl.textContent = '🖱️ Cursor activo · teclas de cámara en pausa';
+  } else if (st.interior) {
+    lbl.style.color = '#10b981';
+    lbl.textContent = '🎧 En cabina · volumen pleno';
+  } else if (st.exterior_pct === 0) {
+    lbl.style.color = '#38bdf8';
+    lbl.textContent = '🚚 Cámara ' + st.camara + ' · silenciado';
+  } else {
+    lbl.style.color = '#38bdf8';
+    lbl.textContent = '🚚 Cámara ' + st.camara + ' · atenuado al ' + st.exterior_pct + '%';
+  }
+}
+
+function _immOffline() {
+  _immOnline = false;
+  var lbl = document.getElementById('immersive-status');
+  if (lbl) {
+    lbl.style.color = '#ef4444';
+    lbl.textContent = 'Servicio no iniciado';
+  }
+}
+
+function immersivePoll() {
+  fetch(IMMERSIVE_URL + '/estado', { cache: 'no-store' })
+    .then(function(r){ return r.json(); })
+    .then(_immApply)
+    .catch(function(){ _immOffline(); });
+}
+
+function immersiveStartPoll() {
+  if (_immPollTimer) return;
+  immersivePoll();
+  _immPollTimer = setInterval(immersivePoll, 1500);
+}
+
+// Licencia Universal Offline
+const UNIVERSAL_KEY = 'MMATS-SANTI-2026-UNIVERSAL';
+function ensureUniversalLicenseActive() {
+  localStorage.setItem('mmats_license_key', UNIVERSAL_KEY);
+  localStorage.setItem('mmats_license_active', '1');
+}
+
+// Receptor de Mensajes C++
+if (window.chrome && window.chrome.webview) {
+  window.chrome.webview.addEventListener('message', function(e) {
+    var data = e.data;
+    if (!data) return;
+    if (data.ev === 'state') {
+      if (data.rtHash) state.rtHash = data.rtHash;
+      if (data.zoom) zoomSet(data.zoom);
+      if (typeof data.volLevel === 'number') volSet(data.volLevel);
+      if (typeof data.mouseSens === 'number') sensSet(data.mouseSens);
+      if (data.mouseColor) mouseColorSet(data.mouseColor);
+      setMmRunning(!!data.mmRunning, data.mmUrl || '');
+      if (data.mmRunning) hitSend();
+    }
+  });
+}
+
+// Drag de Ventana
+(function() {
+  var panel = document.getElementById('panel');
+  var title = document.getElementById('title');
+  var dragging = false, ox = 0, oy = 0;
+  title.addEventListener('mousedown', function(e) {
+    if (e.target.id === 'close') return;
+    dragging = true;
+    var r = panel.getBoundingClientRect();
+    ox = e.clientX - r.left;
+    oy = e.clientY - r.top;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', function(e) {
+    if (!dragging) return;
+    panel.style.left = (e.clientX - ox) + 'px';
+    panel.style.top = (e.clientY - oy) + 'px';
+  });
+  document.addEventListener('mouseup', function() { dragging = false; });
+})();
+
+window.addEventListener('load', function() {
+  hitLoad();
+  hitRender();
+  updateSourceCards();
+  buildMouseColors();
+  ensureUniversalLicenseActive();
+  // Pinta el último estado conocido para que el panel no salga en blanco, y
+  // arranca el sondeo al servicio de audio inmersivo (él manda sobre esto).
+  (function(){
+    var cb = document.getElementById('immersive-toggle');
+    if (cb) cb.checked = immersiveAudioOn();
+    var lvl = 12;
+    try { var g = parseInt(localStorage.getItem('mmats_immersive_level'), 10); if (Number.isFinite(g)) lvl = g; } catch(e){}
+    var sl = document.getElementById('s-immersive');
+    if (sl) sl.value = lvl;
+    immersiveLevelLabel(lvl);
+    immersiveStartPoll();
+  })();
+  postMsg({action:'getState'});
+  postMsg({action:'licensequery'});
+});
+</script>
+</body>
+</html>

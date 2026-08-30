@@ -1,0 +1,25 @@
+
+=== Debug Entry ===
+  Type: 2
+  TypeName: CODEVIEW
+  SizeOfData: 47
+  AddressOfRawData: 0x0001FDC8
+  PointerToRawData: 0x0001E5C8
+  PDB Signature: RSDS
+  PDB GUID: F3188862-469D-B785-4C4C-44205044422E
+  PDB Age: 1
+  PDB Path: WebView2Loader.dll.pdb
+
+=== Debug Entry ===
+  Type: 13
+  TypeName: POGO
+  SizeOfData: 1104
+  AddressOfRawData: 0x0001FDF8
+  PointerToRawData: 0x0001E5F8
+
+=== Debug Entry ===
+  Type: 20
+  TypeName: EX_DLLCHARACTERISTICS
+  SizeOfData: 4
+  AddressOfRawData: 0x00020248
+  PointerToRawData: 0x0001EA48

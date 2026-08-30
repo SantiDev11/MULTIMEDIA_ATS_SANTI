@@ -1,0 +1,418 @@
+================================================================================
+MULTIMEDIA ATS SANTI - CORRECCION FINAL
+================================================================================
+Fecha: 2026-08-28
+Alcance: audio dentro/fuera de la cabina, Roadworks Cursor e integracion de
+YouTube. No se ha reescrito nada que ya funcionara.
+Segunda pasada (misma fecha): se retira la pantalla alternativa "YouTube Libre"
+y se corrige la URL de la integracion oficial. Ver seccion 3.
+================================================================================
+
+
+================================================================================
+0. ARQUITECTURA REAL (lo que se encontro antes de tocar nada)
+================================================================================
+El mod NO tiene codigo fuente C++. dxgi.dll es un binario de terceros
+(ets2gfx / LucidGFX) que este proyecto solo parchea byte a byte con pefile.
+
+   amtrucks.exe
+     |
+     +-- dxgi.dll  (proxy DXGI; hookea CreateSwapChain y DrawIndexed)
+     |     |- WebView2 (Edge) renderizado a una textura D3D11 de 800x400 que se
+     |     |  pinta sobre el mesh de la pantalla del camion
+     |     |- 5 recursos HTML cifrados con Dual-Key XOR en .rdata
+     |     |     lucidgfx_home.html / lucidgfx_overlay.html / chat.html /
+     |     |     split.html / lucidgfx_gps.html
+     |     |- Cursor F8: pixel shader HLSL compilado en caliente (D3DCompile)
+     |     |- Watchdog de audio: reaplica mm_audio_volume ~1 vez/segundo
+     |     |- lucidgfx_settings.ini + lucidgfx.log junto a amtrucks.exe
+     |     \- Protocolo propio  lucidgfx://action/<accion>  desde el JS
+     |
+     \-- mmats_audio_inmersivo.exe (proceso aparte)
+           |- controls.sii -> que tecla es cada camara
+           |- Hook WH_KEYBOARD_LL -> camara activa
+           |- WASAPI -> ganancia de las sesiones del WebView2
+           \- HTTP 127.0.0.1:48221 -> panel de control del overlay
+
+build_multimedia_ats_santi.py monta el dxgi.dll partiendo SIEMPRE del binario
+limpio de BACKUP_MULTIMEDIAATS_SEGURIDAD.
+
+Como funciona cada pieza:
+ - Pantalla:  WebView2 -> textura D3D11 -> mesh. Preset activo en
+              lucidgfx_settings.ini: multimedia_rt_hash = 6E445921D4FBB174
+              ("Multimidia Central / Volvo FH5-FH6, Scania").
+ - YouTube:   un solo camino. La baldosa llama a go() -> modal -> launchApp(),
+              que avisa a la DLL del modo (completo/dividido) y luego hace
+              window.location.href sobre el MISMO WebView2. La pagina del mod se
+              sustituye por la de YouTube dentro de la sesion original.
+ - Audio:     el mod fija el volumen maestro de la sesion WASAPI del WebView2;
+              el servicio externo aplicaba la atenuacion por camara.
+ - Camara:    NO la expone el SDK de SCS. Se deduce del teclado leyendo los
+              bindings reales de controls.sii del perfil activo.
+ - F8:        hook de teclado en la DLL; alterna interactMode, captura el raton
+              y BLOQUEA el teclado del juego para reenviarlo a la pagina.
+ - Cursor:    ya existia, pero era una "bolinha" (circulo) dibujada por un pixel
+              shader, con color configurable desde el overlay (mouse_color).
+
+
+================================================================================
+1. AUDIO - LA CAUSA REAL (era el problema principal)
+================================================================================
+QUE PASABA
+  Fuera del camion la musica se oia a rachas: un fragmento a todo volumen cada
+  segundo, aproximadamente.
+
+POR QUE
+  Dos componentes escribian EL MISMO campo:
+    - dxgi.dll (watchdog de audio) reponia mm_audio_volume ~1 vez/segundo con
+      ISimpleAudioVolume::SetMasterVolume.
+    - mmats_audio_inmersivo.exe escribia ese mismo campo cada 100 ms para
+      mantener el 12% de camara exterior.
+  Secuencia real:
+      t+0.00  watchdog  -> 100%
+      t+0.10  servicio  ->  12%     <- 100 ms de musica a todo volumen
+      t+1.02  watchdog  -> 100%
+      t+1.12  servicio  ->  12%
+  Confirmado en el log del propio mod (lucidgfx.log, 11:56:07 a 11:56:19):
+      [WV2-AUDIO] volume aplicado 100% em 1 sessao(oes)   x12, cada 1,02 s
+  El documento anterior ya sospechaba de esta carrera y proponia bajar el
+  intervalo de reafirmacion. Eso no la arregla: solo acorta el pitido.
+
+ARCHIVO / FUNCION
+  mmats_audio_inmersivo.py -> ControlAudio.escribir() y hilo_audio()
+
+SOLUCION APLICADA
+  Dejar de compartir el mando. Windows calcula
+      volumen_final = maestro (ISimpleAudioVolume) x canal (IChannelAudioVolume)
+  y son dos campos independientes. Se verifico en el binario que dxgi.dll usa
+  IAudioSessionManager2 + ISimpleAudioVolume y NO usa IChannelAudioVolume.
+    - maestro -> sigue siendo del mod. El servicio ya no lo escribe nunca.
+    - canal   -> es del servicio: 1.0 en cabina, exterior_pct/100 fuera.
+
+POR QUE ES SEGURA
+  No se toca la DLL, no se desactiva el watchdog, el slider de volumen del
+  overlay y Ctrl +/- siguen funcionando igual. La carrera desaparece por diseno,
+  no se mitiga. Comprobado contra una sesion de audio real: escribir el maestro
+  no altera el canal y viceversa.
+
+EFECTO SECUNDARIO BUENO
+  Desaparece la limitacion "ajusta el volumen solo estando en cabina": ahora se
+  puede cambiar en cualquier momento sin que el servicio lo sobrescriba.
+
+
+OTROS TRES FALLOS DE AUDIO CORREGIDOS EN LA MISMA PASADA
+--------------------------------------------------------------------------------
+a) SESIONES NUEVAS SE OIAN A TODO VOLUMEN DESDE FUERA
+   ControlAudio.leer() devolvia el volumen de la PRIMERA sesion. Si aparecia una
+   segunda (otro video, otra pestana), el bucle comparaba contra la primera,
+   creia que ya estaba en su sitio y nunca bajaba la nueva.
+   -> Ahora se escribe en TODAS las sesiones y refrescar() avisa cuando el
+      conjunto cambia para reaplicar la ganancia sobre las recien llegadas.
+
+b) DERIVA DEL VOLUMEN BASE TRAS MUCHOS CAMBIOS DE CAMARA
+   En cabina el servicio "adoptaba" como nuevo volumen base cualquier valor que
+   leyera distinto del suyo. Como el watchdog escribia por detras, en secuencias
+   interior/exterior repetidas el base podia derivar.
+   -> El concepto de "volumen base" desaparece: el servicio solo aplica una
+      ganancia relativa. No hay nada que pueda derivar.
+
+c) COSTE DE CPU / MICROTIRONES
+   buscar_pid_juego() recorria TODOS los procesos del sistema en cada vuelta del
+   bucle: cada 100 ms en exterior y cada 16 ms durante un fundido (~60 veces por
+   segundo). Ademas proc.parents() se reevaluaba en cada enumeracion.
+   -> El PID se cachea y solo se rebarre si el proceso desaparece; la
+      clasificacion de cada WebView2 se cachea por PID; y en estado estable, si
+      la ganancia no cambia, no se hace ni una sola llamada COM.
+
+d) TECLEAR EN LA TABLET CAMBIABA LA CAMARA
+   Con el cursor F8 activo, dxgi.dll bloquea el teclado del juego y lo reenvia a
+   la pagina web. Nuestro hook de bajo nivel seguia viendo esas teclas, asi que
+   escribir una URL de YouTube con un "2" silenciaba la musica.
+   -> El servicio refleja el estado del cursor: mientras esta activo ignora las
+      teclas de camara. La tecla se lee de [Hotkeys] hotkey_interact del
+      lucidgfx_settings.ini, no esta codificada a fuego.
+
+CAMBIO DE CAMARA: sigue siendo un fundido de 250 ms (ease-in-out) sobre una
+ganancia. NO se recrea el reproductor, NO se reinicia el video, NO se pausa nada
+y NO se crea ninguna instancia nueva. Solo cambia un numero.
+
+VOLUMEN EXTERIOR: por defecto pasa de 12% a 0% (inaudible), como se pidio.
+Ajustable de 0 a 60% en el overlay. Tambien se actualizo la config ya guardada
+en %APPDATA%\\MULTIMEDIA ATS SANTI\\audio_inmersivo.json.
+
+
+================================================================================
+2. ROADWORKS CURSOR
+================================================================================
+QUE HABIA
+  Un cursor virtual propio del mod (F8) ya funcionaba: hook de raton, cursor en
+  coordenadas del WebView (800x400), sensibilidad y color configurables. Pero se
+  dibujaba como una BOLINHA: un circulo centrado en el punto de interaccion.
+  Un circulo no tiene punta, asi que "donde apunto" era ambiguo.
+
+COMO SE DIBUJA (hallazgo clave)
+  No es un bitmap ni un HCURSOR de Windows: es un pixel shader HLSL que la DLL
+  compila EN CALIENTE con D3DCompile, sobre un triangulo a pantalla completa,
+  descartando con clip() todo lo que quede fuera de la figura. El codigo HLSL
+  viaja como TEXTO PLANO en .rdata y su puntero esta en la tabla de shaders de
+  .data SIN campo de longitud (se pasa como cadena C terminada en NUL).
+  Es decir: se puede sustituir por otro shader de distinto tamano.
+
+QUE SE HA HECHO
+  roadworks_cursor.hlsl (nuevo, 1341 bytes de los 1343 disponibles):
+    - Flecha de puntero clasica de 7 vertices resuelta con SDF de poligono.
+    - La PUNTA esta en (0,0) del espacio del cursor, que es exactamente la
+      coordenada que el mod usa para el clic -> hotspot exacto, sin desfase de
+      X, Y, escala, DPI ni relacion de aspecto.
+    - Relleno con franjas diagonales de obra (color / oscuro alternos), que es
+      la identidad visual de Roadworks Cursor.
+    - Contorno casi negro de ~1,6 px para que se vea sobre fondo claro y oscuro.
+    - Bordes con antialias.
+    - Tamano 16 x 25 px sobre la textura de 800x400 (escala 1,15 x el radio que
+      pasa la DLL).
+    - Se REUTILIZA el color configurable existente (mouse_color del overlay):
+      no se ha creado ningun sistema nuevo.
+  El cbuffer, el clip() y todo el lado C++ quedan intactos.
+
+  Nota: no existia ningun recurso de Roadworks Cursor en el proyecto (se busco).
+  Si mas adelante se aporta una imagen de referencia, los 7 vertices de P[] y la
+  frecuencia de franja son los dos unicos numeros que hay que ajustar.
+
+VERIFICACION
+  Compilado con fxc en ps_4_0 y ps_5_0 sin errores ni avisos, tanto el fuente
+  como el HLSL reextraido de la dxgi.dll ya generada. Si no compilara, el mod se
+  quedaria sin cursor y solo lo diria en el log: por eso se comprobo antes de
+  inyectarlo.
+
+F8 (sin cambios, ya funcionaba)
+  Alterna el modo interactivo. Verificado en lucidgfx.log:
+    [WV2-KB] F8 detectado (hook LL)! wvReady=1 interactMode=0
+    [WV2-INTERACT] SetInteractMode -> ON / OFF
+  Al apagarlo el raton vuelve al juego y no queda nada capturado.
+
+
+================================================================================
+3. YOUTUBE  (revisado el 2026-08-28, segunda pasada)
+================================================================================
+DECISION: se ELIMINA la pantalla alternativa "YouTube Libre" que se habia
+anadido. Creaba un reproductor aparte dentro de un <iframe> a
+youtube-nocookie.com, es decir, una sesion distinta de la del sitio de YouTube.
+No se quiere eso: YouTube tiene que seguir corriendo en la sesion/WebView2
+original, con la navegacion original.
+
+Revertido a partir de lucidgfx_home.html.bak_ytembed. Se comprobo por diff que
+la UNICA diferencia entre ese backup y el archivo con "YouTube Libre" era ese
+bloque, asi que la reversion no arrastra nada mas. Quitado:
+  - la baldosa "YouTube Libre" (#app-ytlibre)
+  - el modal #yt-modal y el reproductor #yt-player con su <iframe>
+  - el CSS de ambos
+  - las funciones openYt/closeYt/ytPlay/ytAbrir/ytStop/ytAnalizar/ytLeer/
+    ytPintar/ytGuardar y la clave de localStorage mmats_yt_recientes
+Quedan 0 restos en el HTML.
+
+
+FLUJO OFICIAL (el unico que hay ahora, y el que ya existia)
+--------------------------------------------------------------------------------
+  baldosa YouTube  ->  go(url, 'YouTube')
+                         |
+                         +- PANE_MODE (split): navega directo
+                         \- si no: abre el modal Pantalla Completa / Dividida
+                                     |
+                                     v
+                             launchApp(useSplit)
+                               |- sendAction('split/<0|1>/1/50/0')  -> la DLL
+                               \- window.location.href = url
+                                  (MISMO WebView2, misma sesion, mismas cookies)
+
+No se ha tocado go(), ni launchApp(), ni closeModal(), ni showLoad(), ni el
+protocolo lucidgfx://action/. La navegacion es exactamente la de siempre.
+
+
+FALLO REAL ENCONTRADO EN LA URL
+--------------------------------------------------------------------------------
+La baldosa apuntaba a  https://m.youtube.com  con la intencion evidente de usar
+la interfaz movil: botones grandes, sin barra lateral, ideal para una pantalla
+de 800x400 manejada con el cursor virtual.
+
+Esa intencion NUNCA se cumplia. WebView2 manda un User-Agent de escritorio
+(Edge/Windows), y con ese UA m.youtube.com responde con una redireccion:
+
+    https://m.youtube.com/            ->  https://www.youtube.com/?app=desktop
+    (con UA de movil se quedaria en m.youtube.com, pero WebView2 no lo manda)
+
+Consecuencias:
+  1. Se acababa siempre en el sitio de escritorio, apretado en 800x400 y con
+     objetivos pequenos para el cursor.
+  2. ?app=desktop es una preferencia PEGAJOSA: YouTube la guarda en el perfil,
+     asi que la navegacion interna posterior tambien se quedaba en escritorio.
+  3. Un salto de redireccion extra en cada arranque dentro de la cabina.
+
+CORRECCION (un solo parametro, oficial de YouTube, misma sesion)
+    https://m.youtube.com/?persist_app=1&app=m
+
+Comprobado con el mismo User-Agent de escritorio que usa WebView2:
+
+    https://m.youtube.com/                        -> www.youtube.com/?app=desktop
+    https://m.youtube.com/?persist_app=1&app=m    -> SIN redireccion  <-- este
+    https://www.youtube.com/?persist_app=1&app=m  -> www.youtube.com/?app=desktop
+    https://www.youtube.com/                      -> SIN redireccion
+
+app=m pide la aplicacion web movil y persist_app=1 hace que YouTube guarde esa
+preferencia en el perfil, de modo que al abrir un video o volver al inicio la
+interfaz sigue siendo la movil en vez de rebotar a escritorio. Tiene que ser
+sobre el host m.youtube.com: sobre www no funciona (probado arriba).
+
+En el HTML el & va escrito como &amp; por ser un valor de atributo. Verificado
+con un parser HTML real que el JS recibe la URL con & literal.
+
+Nota: la URL de lanzamiento vive SOLO en el onclick de lucidgfx_home.html.
+home_script.js no contiene ninguna URL de YouTube (solo el flag de entitlement
+y el selector de plataforma del chat), asi que ahi no habia nada que corregir.
+
+
+ANUNCIOS: DEPENDE DE LA CUENTA, NO DEL MOD
+--------------------------------------------------------------------------------
+Con la integracion oficial NO es posible quitar los anuncios desde el mod, y no
+se ha intentado ningun apano:
+
+  - Los anuncios los sirve el propio reproductor de YouTube desde la misma
+    infraestructura (googlevideo.com) que el video. No hay ningun parametro
+    soportado que los desactive.
+  - Ocultarlos por CSS no quita ni el audio ni el tiempo del anuncio, y ademas
+    ya estaba descartado.
+  - Bloquear hosts (--host-resolver-rules) exigiria AdditionalBrowserArguments
+    al crear el entorno WebView2. La DLL no lo expone y no hay fuente C++ para
+    anadirlo. Y bloquear googlevideo.com tumba la reproduccion, porque anuncio y
+    video salen del mismo sitio.
+  - WebView2 admite extensiones (ICoreWebView2Profile7::AddBrowserExtension),
+    pero la DLL no llama a esa API.
+
+LA VIA QUE SI FUNCIONA, Y ES OFICIAL: YouTube Premium con la sesion iniciada
+dentro de la tablet. La eliminacion de anuncios es una propiedad de la CUENTA,
+no de la pagina: se aplica sola en el reproductor, sin tocar nada del mod y sin
+romperse con las actualizaciones de YouTube.
+
+La sesion se mantiene sola: el WebView2 del mod usa un perfil de usuario
+persistente (es lo que permite que la sesion de Spotify sobreviva entre
+partidas) y las cookies de autenticacion de Google son persistentes de por si.
+Basta con iniciar sesion una vez en la tablet, con el cursor F8.
+
+Lo que SI mejora con la correccion de la URL, sin prometer de mas: la interfaz
+movil no tiene barra lateral, asi que desaparecen los banners de acompanamiento
+y las tarjetas promocionadas del lateral. Los anuncios de video (pre-roll y
+mid-roll) son exactamente los mismos: esos solo se van con Premium.
+
+================================================================================
+4. FALLO DE PIPELINE ENCONTRADO Y CORREGIDO
+================================================================================
+fix_flip_pantalla.py parcheaba el dxgi.dll YA GENERADO para corregir la imagen
+al reves. Pero build_multimedia_ats_santi.py parte siempre del binario limpio de
+BACKUP_MULTIMEDIAATS_SEGURIDAD, asi que CADA recompilacion deshacia ese arreglo
+en silencio y la pantalla volvia a salir invertida.
+
+Comprobado: la DLL base tiene el preset 'scania' con flip=SI; la generada tenia
+flip=no. El fix vivia solo en el binario, no en el proyecto.
+
+-> Ahora el V-flip forma parte del build (paso 5). El script fix_flip_pantalla.py
+   se conserva tal cual para ajustes puntuales; el build lo importa y reutiliza
+   sus tablas, no se duplica logica.
+
+
+================================================================================
+5. AVISO IMPORTANTE SOBRE EL ESPACIO EN .rdata
+================================================================================
+Los HTML se inyectan en huecos de tamano fijo. Ocupacion tras estos cambios:
+
+    lucidgfx_home.html      41221 / 41264     (43 libres)   <-- AL LIMITE
+    lucidgfx_overlay.html   37510 / 75360  (37850 libres)
+    chat.html               22187 / 22224     (37 libres)   <-- AL LIMITE
+    split.html               4531 /  6912   (2381 libres)
+    lucidgfx_gps.html        2780 /  2976    (196 libres)
+
+lucidgfx_home.html y chat.html estan practicamente llenos. Antes de anadir nada
+a esas dos paginas hay que liberar sitio (minificar el CSS/JS inline). El build
+aborta con un mensaje claro si algo no cabe, asi que no se puede corromper la
+DLL por accidente, pero conviene saberlo.
+
+
+================================================================================
+6. ARCHIVOS MODIFICADOS
+================================================================================
+NUEVOS
+  roadworks_cursor.hlsl                Shader del Roadworks Cursor (flecha con
+                                       franjas de obra, punta = hotspot).
+  CORRECCION_FINAL_2026-08-28.txt      Este informe.
+
+MODIFICADOS
+  mmats_audio_inmersivo.py             IChannelAudioVolume en vez de
+                                       ISimpleAudioVolume (fin de la carrera con
+                                       el watchdog); ganancia aplicada a TODAS
+                                       las sesiones y reaplicada a las nuevas;
+                                       PID del juego y clasificacion de procesos
+                                       cacheados; espejo del cursor F8;
+                                       exterior_pct por defecto 0; diagnostico
+                                       muestra maestro x ganancia.
+  build_multimedia_ats_santi.py        Paso 4: inyecta roadworks_cursor.hlsl en
+                                       el hueco del shader del cursor, con
+                                       comprobacion de capacidad.
+                                       Paso 5: aplica el V-flip para que no se
+                                       pierda en cada recompilacion.
+  MENU_EXTRAIDO/lucidgfx_overlay.html  Estados nuevos del panel de audio
+                                       ("silenciado", "cursor activo"); slider de
+                                       camara exterior por defecto a 0%.
+  MENU_EXTRAIDO/overlay_script.js      Mismos estados (copia espejo del inline).
+  MENU_EXTRAIDO/lucidgfx_home.html     Eliminada la pantalla alternativa
+                                       "YouTube Libre" (baldosa, modal, iframe,
+                                       CSS y funciones). URL de YouTube
+                                       corregida a
+                                       m.youtube.com/?persist_app=1&app=m para
+                                       que no redirija a escritorio.
+  AUDIO_INMERSIVO_3D.txt               Documentacion al dia (la anterior describia
+                                       el diseno que causaba el problema).
+  dxgi.dll                             Regenerado por el build.
+  mmats_audio_inmersivo.exe            Reempaquetado (raiz y dist/).
+  MULTIMEDIA ATS SANTI.exe             Reempaquetado (raiz y dist/), contiene el
+                                       dxgi.dll y el servicio nuevos.
+
+NO SE HA TOCADO
+  El diseno, la resolucion, la posicion, el tamano, la navegacion, los controles,
+  la integracion de YouTube/Spotify/Twitch/Netflix, el modo split, el GPS, el
+  chat, la licencia, el power gate ni el hook de raton del mod.
+
+
+================================================================================
+7. VERIFICACIONES HECHAS EN ESTA PASADA
+================================================================================
+[OK] Los 5 recursos HTML se descifran desde la dxgi.dll generada byte a byte
+     identicos a los fuentes de MENU_EXTRAIDO
+[OK] El HLSL reextraido de la DLL generada es identico al fuente y compila con
+     fxc en ps_4_0 y ps_5_0
+[OK] Diff binario de la DLL: solo cambian el hueco del shader, los bloques de
+     recursos y sus campos de longitud. Ni un byte de .text
+[OK] Presets de V-flip correctos en la DLL generada
+[OK] Escribir ISimpleAudioVolume no altera IChannelAudioVolume ni al reves
+     (probado contra una sesion de audio real)
+[OK] ControlAudio: aplicar / soltar / idempotencia (0 llamadas COM si el valor
+     no cambia) / reaplicacion forzada al aparecer sesiones nuevas / 20 cambios
+     de camara seguidos sin deriva / restauracion a 1.0 al soltar
+[OK] mmats_audio_inmersivo.exe reempaquetado arranca y --diagnostico muestra
+     maestro x ganancia = efectivo
+[OK] El instalador generado contiene el dxgi.dll nuevo (con ROADWORKS CURSOR) y
+     el servicio nuevo
+
+PENDIENTE DE PRUEBA EN JUEGO (requiere ATS abierto, no se puede automatizar)
+  TEST 1  entrar al camion: pantalla, YouTube, video y audio
+  TEST 2  F8 -> aparece el Roadworks Cursor
+  TEST 3  movimiento fluido y sin desfase
+  TEST 4  clic sobre los controles de YouTube
+  TEST 5  reproduccion limpia, sin cortes ni duplicacion
+  TEST 6  camara exterior: inaudible, sin reiniciar el video
+  TEST 7  volver a cabina: el audio vuelve, el video continua
+  TEST 8  interior/exterior repetido: sin glitches ni deriva
+  TEST 9  F8 -> el cursor desaparece y el raton vuelve al juego
+
+  Para instalarlo: ejecutar "MULTIMEDIA ATS SANTI.exe".
+  Para depurar el audio: mmats_audio_inmersivo.exe --diagnostico
+  Log del servicio: %APPDATA%\\MULTIMEDIA ATS SANTI\\audio_inmersivo.log
+  Log del mod: lucidgfx.log junto a amtrucks.exe
+================================================================================

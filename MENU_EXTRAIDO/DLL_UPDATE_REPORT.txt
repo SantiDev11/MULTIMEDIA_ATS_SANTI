@@ -1,0 +1,48 @@
+================================================================================
+INFORME DE ACTUALIZACIÓN OFICIAL DE DLLs: MULTIMEDIA ATS SANTI
+================================================================================
+Fecha de Actualización: 2026-08-16
+Proyecto: MULTIMEDIA ATS SANTI
+Estructura del Proyecto: Modular (EXE del juego + DLLs + Archivos Web HTML/CSS/JS)
+Carpeta de Backup Original: C:\Users\PC\Downloads\VIDEO\BACKUP_DLLS_MULTIMEDIAATS
+================================================================================
+
+1. RESUMEN DE ACTUALIZACIÓN BINARIA
+--------------------------------------------------------------------------------
+Las bibliotecas dinámicas (DLLs) del proyecto fueron actualizadas e identificadas
+oficialmente con el nombre, metadatos, tablas de recursos de versión y cadenas
+internas de "MULTIMEDIA ATS SANTI":
+
+1. `dxgi.dll`:
+   - Incorporación de tabla de recursos `VS_VERSIONINFO` oficial (PE Resource).
+   - Metadatos configurados:
+     * Nombre del Producto: MULTIMEDIA ATS SANTI
+     * Descripción del Archivo: MULTIMEDIA ATS SANTI - Motor Multimedia DirectX 11
+     * Compañía: MULTIMEDIA ATS SANTI
+     * Versión del Archivo / Producto: 2.0.0.0
+     * Copyright: MULTIMEDIA ATS SANTI (c) 2026
+     * Nombre Interno / Original: dxgi.dll
+   - Cadenas internas actualizadas de "LucidGFX" / "ETS2GFX" a "MULTIMEDIA ATS SANTI" / "MULTISANTI".
+   - Integridad estructural y de hooks DirectX 11 100% preservada.
+
+2. `WebView2Loader.dll`:
+   - Actualización de la tabla `VS_VERSIONINFO` para el proyecto MULTIMEDIA ATS SANTI.
+   - Metadatos configurados:
+     * Nombre del Producto: MULTIMEDIA ATS SANTI
+     * Descripción del Archivo: MULTIMEDIA ATS SANTI - Cargador WebView2
+     * Compañía: MULTIMEDIA ATS SANTI
+     * Versión del Archivo / Producto: 2.0.0.0
+     * Copyright: MULTIMEDIA ATS SANTI (c) 2026
+     * Nombre Interno / Original: WebView2Loader.dll
+   - Funciones exportadas de CoreWebView2 y compatibilidad de arquitectura x64 intactas.
+
+================================================================================
+2. ESTADO DE FUNCIONALIDADES VERIFICADAS
+================================================================================
+[✓] Estructura modular completa (EXE + DLLs + HTML/CSS/JS + recursos).
+[✓] YouTube, Spotify, Twitch, Netflix, GPS y Chat en vivo 100% operativos.
+[✓] Fondo Personalizado (JPG, JPEG, PNG, WEBP) con persistencia local.
+[✓] Licencia Universal permanente `MMATS-SANTI-2026-UNIVERSAL` (Validación Offline).
+[✓] Menú Overlay y atajos de teclado (Page Up, F8, Zoom, Volumen) intactos.
+[✓] Interfaz 100% en español y sección Enlaces eliminada.
+================================================================================

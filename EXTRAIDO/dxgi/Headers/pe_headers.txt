@@ -1,0 +1,44 @@
+=== DOS Header ===
+e_magic: 0x5A4D (MZ)
+e_lfanew: 0x00000118
+
+=== NT Headers ===
+Signature: 0x00004550 (PE)
+
+=== File Header ===
+Machine: 0x8664 (x64 (AMD64))
+NumberOfSections: 7
+TimeDateStamp: 0x6A603486 (2026-07-22 03:09:58 UTC)
+NumberOfSymbols: 0
+SizeOfOptionalHeader: 240
+Characteristics: 0x2022 (EXECUTABLE_IMAGE, LARGE_ADDRESS_AWARE, DLL)
+
+=== Optional Header ===
+Magic: 0x020B (PE32+)
+LinkerVersion: 14.44
+SizeOfCode: 0x00139800 (1284096 bytes)
+AddressOfEntryPoint: 0x000FBD40
+ImageBase: 0x0000000180000000
+SectionAlignment: 0x00001000
+FileAlignment: 0x00000200
+OSVersion: 6.0
+ImageVersion: 0.0
+SubsystemVersion: 6.0
+SizeOfImage: 0x00211000
+SizeOfHeaders: 0x00000400
+CheckSum: 0x00000000
+Subsystem: WINDOWS_CUI
+DllCharacteristics: 0x0160 (HIGH_ENTROPY_VA, DYNAMIC_BASE, NX_COMPAT)
+NumberOfRvaAndSizes: 16
+
+=== Data Directories ===
+  [ 0] EXPORT               RVA=0x001F62B0 Size=0x000007C4
+  [ 1] IMPORT               RVA=0x001F6A74 Size=0x000003FC
+  [ 2] RESOURCE             RVA=0x0020F000 Size=0x000001E0
+  [ 3] EXCEPTION            RVA=0x00202000 Size=0x0000B700
+  [ 5] BASERELOC            RVA=0x00210000 Size=0x00000F00
+  [ 6] DEBUG                RVA=0x001DC1FC Size=0x0000001C
+  [ 9] TLS                  RVA=0x001DC380 Size=0x00000028
+  [10] LOAD_CONFIG          RVA=0x001CD5B0 Size=0x00000140
+  [12] IAT                  RVA=0x0013B000 Size=0x00000890
+  [13] DELAY_IMPORT         RVA=0x001F5784 Size=0x00000080

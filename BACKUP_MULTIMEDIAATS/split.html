@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LucidGFX Split</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0c0e18; font-family: -apple-system, "Segoe UI", Arial, sans-serif; }
+
+/* PAISAGEM (tela larga/central): conteúdo 2/3 à esquerda | chat 1/3 à direita */
+#shell {
+  width: 100%; height: 100%;
+  display: grid; gap: 2px; background: #04050a;
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 1fr;
+  grid-template-areas: "content chat";
+}
+/* RETRATO (celular/vidro, alto e estreito): conteúdo em cima 1/2 | chat embaixo 1/2 */
+@media (max-aspect-ratio: 4/5) {
+  #shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas: "content" "chat";
+  }
+}
+#pane-content { grid-area: content; position: relative; }
+#pane-chat    { grid-area: chat; position: relative; }
+iframe { width: 100%; height: 100%; border: 0; display: block; background: #0c0e18; }
+
+/* Overlay de controles do conteúdo: pequeno, canto superior esquerdo.
+   Fica acima do iframe mas é minúsculo, não rouba o clique do conteúdo. */
+#ctl {
+  position: absolute; top: 6px; left: 6px; z-index: 9;
+  display: flex; gap: 5px;
+}
+#ctl button {
+  font-size: 12px; font-weight: 700;
+  background: rgba(20,24,40,0.92); color: #dfe6f2;
+  border: 1px solid rgba(120,150,255,0.3); border-radius: 8px;
+  padding: 5px 10px; cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+#ctl button:active { background: rgba(40,55,90,0.95); }
+</style>
+</head>
+<body>
+
+<div id="shell">
+  <div id="pane-content">
+    <div id="ctl">
+      <button onclick="goApps()" title="Voltar aos apps">≡ Apps</button>
+      <button onclick="exitSplit()" title="Sair do split">✕</button>
+    </div>
+    <iframe id="content" src="" allow="autoplay; encrypted-media; fullscreen; picture-in-picture"></iframe>
+  </div>
+  <div id="pane-chat">
+    <iframe id="chat" src=""></iframe>
+  </div>
+</div>
+
+<script>
+// split.html?plat=twitch&channel=X | ?plat=youtube&channel=X | ?demo=1
+// Shell de dois iframes: conteúdo (home/YouTube/Netflix/...) | chat, na MESMA
+// página WebView2. O bloqueio anti-iframe de terceiros é derrubado pelo C++
+// (AdditionalAllowedFrameAncestors no FrameNavigationStarting).
+(function () {
+  function assetUrl(rel) {
+    // location.href = file:///.../split.html?...  → remove o nome do arquivo e a query
+    var base = location.href.replace(/[^/]*(\?.*)?$/, '');
+    return base + rel;
+  }
+
+  var q = new URLSearchParams(location.search);
+  var content = document.getElementById('content');
+  var chat = document.getElementById('chat');
+
+  // ---- Painel de conteúdo ----
+  // TESTE: ?ytembed=VIDEO_ID carrega o player de embed do YouTube direto (a página
+  // /embed/ é feita pra iframe e não bloqueia, ao contrário de m.youtube.com).
+  // Decide se o vídeo aparece na captura PrintWindow antes de investir em arquitetura.
+  var HOME_URL = assetUrl('lucidgfx_home.html') + '?pane=1';
+  var ytEmbed = q.get('ytembed');
+  if (ytEmbed) {
+    // origin = a origem real do embedder (https://lucidgfx.local). Sem isso o YouTube
+    // recusa com "Erro 153 — erro de configuração do player".
+    content.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(ytEmbed) +
+                  '?autoplay=1&mute=1&playsinline=1&origin=' + encodeURIComponent(location.origin);
+  } else {
+    content.src = HOME_URL;
+  }
+
+  // ---- Painel de chat: monta a URL do chat a partir da query do shell ----
+  var chatUrl = assetUrl('chat.html');
+  if (q.get('demo') === '1') {
+    chatUrl += '?demo=1';
+  } else if (q.get('plat') === 'youtube') {
+    chatUrl += '?yt=1';
+  } else if (q.get('plat') === 'twitch') {
+    chatUrl += '?channel=' + encodeURIComponent(q.get('channel') || '');
+  } else {
+    chatUrl += '?demo=1';
+  }
+  chat.src = chatUrl;
+
+  // ---- Controles do shell ----
+  window.goApps = function () { content.src = HOME_URL; };      // volta aos apps no painel
+  window.exitSplit = function () {                              // sai do split (tela cheia / home)
+    window.location.href = 'lucidgfx://action/resethome';
+  };
+
+  // ---- Reexport dos pontos de extensão do C++ ----
+  // O C++ chama estes no documento de topo (este shell); repassamos ao iframe certo.
+  // É chamada direta de contentWindow porque tudo é same-origin file://.
+  var pendingChat = [];
+  window._lgfxChatPush = function (p, u, c, b) {
+    try { chat.contentWindow._lgfxChatPush(p, u, c, b); }
+    catch (e) { pendingChat.push([p, u, c, b]); }
+  };
+  // Batch: o C++ manda o lote inteiro do poll de uma vez (evita engasgo sob
+  // volume alto). Repassa direto ao iframe; se ainda não carregou, guarda cada
+  // item no mesmo buffer pendingChat (repassado 1-a-1 no load — o iframe então
+  // já coalesce internamente via requestAnimationFrame).
+  window._lgfxChatPushBatch = function (items) {
+    if (!items || !items.length) return;
+    try { chat.contentWindow._lgfxChatPushBatch(items); }
+    catch (e) { for (var i = 0; i < items.length; i++) pendingChat.push(items[i]); }
+  };
+  chat.addEventListener('load', function () {
+    try {
+      var f = chat.contentWindow._lgfxChatPush;
+      if (f) while (pendingChat.length) f.apply(null, pendingChat.shift());
+    } catch (e) {}
+  });
+  // Licença / config de chat: a home vive no pane-content → repassa pra lá
+  window._lgfxOnLicense = function (j) { try { content.contentWindow._lgfxOnLicense(j); } catch (e) {} };
+  window._lgfxOnChatConfig = function (j) { try { content.contentWindow._lgfxOnChatConfig(j); } catch (e) {} };
+
+  // Relógio (horário do JOGO): o C++ (TelemetryTime) chama _lgfxSetGameTime no
+  // documento de TOPO, que aqui é este shell — não a home. Sem repassar, a home
+  // dentro do split nunca recebe o horário e cai pro relógio do PC. Repassa pro
+  // pane-content (onde a home vive) e guarda o último estado pra reaplicar quando
+  // a home (re)carrega — ex.: goApps(). Só empurra pra home; YouTube embed no
+  // content é cross-origin e o try/catch engole o acesso negado.
+  var _gtLast = null;  // null = sem horário de jogo (usa relógio do PC); 'HH:MM' = horário do jogo
+  window._lgfxSetGameTime = function (hhmm) {
+    _gtLast = hhmm;
+    try { content.contentWindow._lgfxSetGameTime(hhmm); } catch (e) {}
+  };
+  window._lgfxClearGameTime = function () {
+    _gtLast = null;
+    try { content.contentWindow._lgfxClearGameTime(); } catch (e) {}
+  };
+  content.addEventListener('load', function () {
+    try {
+      var f = content.contentWindow._lgfxSetGameTime;
+      if (f && _gtLast != null) f(_gtLast);
+    } catch (e) {}
+  });
+
+  window._lgfxSetWindow = function (a, b) {};  // no-op (a home em iframe não calibra)
+})();
+</script>
+</body>
+</html>

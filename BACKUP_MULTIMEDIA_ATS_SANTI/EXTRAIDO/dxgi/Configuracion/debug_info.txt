@@ -1,0 +1,7 @@
+
+=== Debug Entry ===
+  Type: 13
+  TypeName: POGO
+  SizeOfData: 1208
+  AddressOfRawData: 0x001DEE28
+  PointerToRawData: 0x001DDA28
