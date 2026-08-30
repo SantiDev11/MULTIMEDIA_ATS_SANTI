@@ -3,13 +3,32 @@
 ================================================================================
 MULTIMEDIA ATS SANTI - Audio Inmersivo 3D por Camara
 ================================================================================
-Baja el volumen de la multimedia (Spotify / YouTube / Twitch / Netflix, que
-corren dentro de msedgewebview2.exe) cuando el jugador sale a una camara
-exterior, y lo restaura al volver a la cabina.
+La multimedia (Spotify / YouTube / Twitch / Netflix, que corren dentro de
+msedgewebview2.exe) suena EXCLUSIVAMENTE con la camara 1. En cuanto el jugador
+sale de la cabina se corta, y al volver se reactiva.
 
   Camara 1 (cabina)      -> volumen pleno del usuario
-  Camaras 2..8 / libre   -> 0% por defecto (inaudible desde fuera; el overlay
-                           permite subirlo hasta el 60% si se prefiere lejano)
+  Camaras 2..8 / libre   -> silencio total, sin residuo ni cola
+
+QUE SIGNIFICA "SILENCIO TOTAL" AQUI, Y POR QUE NO ES UN SetMute
+--------------------------------------------------------------------------------
+Fuera de la camara 1 se escribe 0.0 en TODOS los canales de la sesion
+(IChannelAudioVolume). Windows mezcla volumen_final = maestro * canal, asi que
+un canal a 0.0 no es "volumen bajo": es la muestra a cero, silencio digital. No
+queda cola, ni residuo, ni fragmentos.
+
+Y no se usa ISimpleAudioVolume.SetMute a proposito. El watchdog de audio de
+dxgi.dll lo deshace activamente -en el binario estan las cadenas
+"mm_audio_force_unmute" y "[WV2-AUDIO] revertido MUTE de {} sessao(oes) do
+WebView2"-, asi que un mute nuestro duraria hasta su siguiente pasada (~1 s) y
+volveria el audio a rachas. El volumen por canal es el unico mando que ese
+watchdog no toca, de modo que aqui no hay carrera que perder.
+
+Lo que NO se hace es pausar la reproduccion: pararla de verdad exigiria
+secuestrar las teclas multimedia del sistema (afectaria tambien a Spotify de
+escritorio) y el jugador perderia la posicion del video o de la cancion al
+volver a la cabina. El stream sigue donde estaba, pero no llega ni una muestra
+audible a la mezcla mientras la camara no sea la 1.
 
 POR QUE ES UN PROCESO EXTERNO Y NO ESTA DENTRO DE dxgi.dll
 --------------------------------------------------------------------------------
@@ -105,14 +124,32 @@ PUERTO_DEFECTO = 48221
 GAME_EXE = "amtrucks.exe"
 WEBVIEW_EXE = "msedgewebview2.exe"
 
+# Ganancia inmersiva por camara. Es TODA la logica de audio del servicio.
+#
+#   camara == 1  -> GANANCIA_CABINA    (audio activado y audible)
+#   camara != 1  -> GANANCIA_EXTERIOR  (silencio, sin excepciones)
+#
+# No son configurables a proposito: el audio de la tablet es exclusivo de la
+# camara 1. Un valor intermedio dejaria musica sonando fuera de la cabina, que
+# es justo lo que este servicio existe para evitar.
+GANANCIA_CABINA = 1.0
+GANANCIA_EXTERIOR = 0.0
+
 # Valores por defecto de la configuracion persistida.
+#
+# exterior_pct y fade_ms se conservan porque el overlay del mod los lee y los
+# envia, pero ya no gobiernan nada: se fuerzan a 0 al cargar y el POST /config
+# los ignora. Asi el panel sigue funcionando (muestra "silenciado") sin poder
+# reintroducir audio fuera de la cabina ni retrasar el corte con un fundido.
 CONFIG_DEFECTO = {
     "enabled": True,        # audio inmersivo activo
-    "exterior_pct": 0,      # % del volumen del usuario al estar en camara exterior
-                            # (0 = inaudible desde fuera; ajustable 0-60 en el overlay)
-    "fade_ms": 250,         # duracion del fundido entre estados
+    "exterior_pct": 0,      # fijo: fuera de la camara 1 no hay volumen que repartir
+    "fade_ms": 0,           # fijo: el corte y la reactivacion son instantaneos
     "port": PUERTO_DEFECTO,
 }
+
+# Claves que se aceptan por compatibilidad pero ya no se aplican.
+CONFIG_FIJA = ("exterior_pct", "fade_ms")
 
 
 # ==============================================================================
@@ -178,8 +215,11 @@ def cargar_config():
     except (OSError, ValueError):
         pass
     cfg["enabled"] = bool(cfg["enabled"])
-    cfg["exterior_pct"] = max(0, min(100, int(cfg["exterior_pct"])))
-    cfg["fade_ms"] = max(0, min(2000, int(cfg["fade_ms"])))
+    # Un json viejo puede traer exterior_pct=12 y fade_ms=250 de la version que
+    # atenuaba en vez de silenciar. Se normalizan aqui para que una instalacion
+    # actualizada no siga oyendo la musica desde fuera del camion.
+    for clave in CONFIG_FIJA:
+        cfg[clave] = 0
     cfg["port"] = max(1024, min(65535, int(cfg["port"])))
     return cfg
 
@@ -310,6 +350,13 @@ class Estado:
     def __init__(self, cfg):
         self.lock = threading.Lock()
         self.cfg = cfg
+        # Aviso de "la camara ha cambiado" para el hilo de audio.
+        #
+        # Es lo que evita tener un bucle vigilando la camara: el hilo de audio
+        # duerme en este evento en vez de sondear, y el hilo de eventos -que ya
+        # existe para consumir las teclas del hook- lo despierta en el instante
+        # del cambio. Cero sondeo, cero hilos nuevos, latencia de milisegundos.
+        self.senal_camara = threading.Event()
         self.interior = True        # se asume cabina al arrancar
         self.camara = 1             # ultima camara conocida (1..8, 0 = libre)
         self.juego_activo = False
@@ -808,6 +855,10 @@ def _procesar_tecla(estado, pid_juego, pid_foco, vk):
         estado.camara = nueva_cam
         estado.interior = interior
         estado.cambios += 1
+    # Despertar al hilo de audio AHORA, sin esperar a su siguiente vuelta: es lo
+    # que hace que salir de la cabina corte el sonido en el acto y volver a ella
+    # lo devuelva igual de rapido.
+    estado.senal_camara.set()
     log(f"Camara -> {nueva_cam} ({'INTERIOR' if interior else 'EXTERIOR'})")
 
 
@@ -851,10 +902,11 @@ def _camara_de_tecla(mapa, vk):
 #     maestro -> lo sigue gobernando el mod (slider del overlay, Ctrl +/-,
 #                watchdog). No lo tocamos NUNCA.
 #     canal   -> lo gobierna este servicio. Es la "ganancia inmersiva":
-#                1.0 en cabina, exterior_pct/100 fuera.
+#                1.0 en la camara 1, 0.0 en cualquier otra.
 #
 # Resultado: cero carreras, cero parpadeos, y el usuario puede mover su volumen
-# en cualquier momento (tambien en camara exterior) sin que nada lo sobrescriba.
+# en cualquier momento sin que nada lo sobrescriba; lo que ajusta es el volumen
+# que oira al volver a la cabina, porque fuera de ella el producto es cero.
 
 def _importar_audio():
     import comtypes
@@ -907,6 +959,10 @@ class ControlAudio:
     # cara; en cabina no hace falta correr (ver hilo_audio).
     INTERVALO_SCAN = 1.0
     INTERVALO_SCAN_CABINA = 3.0
+    # Suelo para las reenumeraciones forzadas. Al salir de la cabina se pide una
+    # inmediata, pero sin este tope, machacar las teclas de camara lanzaria un
+    # GetAllSessions() -la llamada COM mas cara del programa- por pulsacion.
+    INTERVALO_MINIMO = 0.2
 
     def __init__(self):
         self._sesiones = []     # [(clave, IChannelAudioVolume, n_canales)]
@@ -927,7 +983,8 @@ class ControlAudio:
         ahora = time.monotonic()
         if intervalo is None:
             intervalo = self.INTERVALO_SCAN
-        if not forzar and (ahora - self._ultimo_scan) < intervalo:
+        desde_el_ultimo = ahora - self._ultimo_scan
+        if desde_el_ultimo < (self.INTERVALO_MINIMO if forzar else intervalo):
             return False
         self._ultimo_scan = ahora
 
@@ -1061,21 +1118,37 @@ def hilo_audio(estado, parar, rastreador, hook):
 
     Se ejecuta con prioridad por debajo de lo normal: su trabajo no es urgente y
     asi no le quita turno ni al juego ni al hilo del hook.
+
+    NO SONDEA LA CAMARA. Duerme en estado.senal_camara, que el hilo de eventos
+    dispara justo cuando el jugador cambia de camara. Los tiempos de espera de
+    abajo son solo la red de seguridad para detectar pestanas nuevas, no la
+    latencia del corte: esa la marca el evento y son milisegundos.
     """
     comtypes, _ = _importar_audio()
     comtypes.CoInitialize()
     prioridad_hilo(THREAD_PRIORITY_BELOW_NORMAL)
     control = ControlAudio()
     ultimo_interior = None      # None = todavia no hemos aplicado nada
-    fade_desde = fade_hasta = 1.0
-    fade_t0 = 0.0
-    fade_dur = 0.0
     aviso_sin_sesion = 0.0
     apagado = False             # la funcion esta desactivada y ya hemos soltado
     hook_puesto = False
 
+    def dormir(segundos):
+        """
+        Espera, pero se despierta en el acto si cambia la camara o si hay que
+        parar (parada_ordenada() dispara la misma senal). El clear() va al
+        principio de cada vuelta, no aqui, para que un cambio ocurrido mientras
+        aplicabamos la ganancia no se pierda.
+        """
+        estado.senal_camara.wait(segundos)
+
     try:
         while not parar.is_set():
+            # Consumir el aviso ANTES de leer el estado: si la camara cambia a
+            # partir de este punto, la senal se queda puesta y la espera del
+            # final de la vuelta retorna sin dormir. Asi no hay cambio perdido
+            # por mucho que el jugador machaque las teclas de camara.
+            estado.senal_camara.clear()
             pid = rastreador.refrescar()
 
             # El hook solo vive mientras vive el juego.
@@ -1095,6 +1168,13 @@ def hilo_audio(estado, parar, rastreador, hook):
                 with estado.lock:
                     estado.juego_activo = False
                     estado.sesiones = 0
+                    # ATS siempre arranca la partida en la camara 1. Sin este
+                    # reinicio, cerrar el juego estando fuera de la cabina dejaba
+                    # el servicio creyendo que seguimos en la camara 3, y en la
+                    # siguiente partida el audio nacia mudo hasta que el jugador
+                    # pulsaba "1" a ciegas.
+                    estado.camara = 1
+                    estado.interior = True
                 parar.wait(2.0)
                 continue
 
@@ -1102,6 +1182,7 @@ def hilo_audio(estado, parar, rastreador, hook):
                 estado.juego_activo = True
                 cfg = dict(estado.cfg)
                 interior = estado.interior
+                camara = estado.camara
 
             if not cfg["enabled"]:
                 # Funcion apagada: devolver el mando entero al mod.
@@ -1110,17 +1191,27 @@ def hilo_audio(estado, parar, rastreador, hook):
                     ultimo_interior = None
                     apagado = True
                     log("Audio inmersivo desactivado: ganancia liberada.")
-                parar.wait(0.5)
+                dormir(1.0)
                 continue
             apagado = False
+
+            # La camara 1 es la cabina, y la unica en la que suena la multimedia.
+            # Cualquier otra -2..8 o la camara libre- va a silencio.
+            cambio_camara = (interior != ultimo_interior)
 
             # En cabina la ganancia es 1.0, que es justo con la que nace toda
             # sesion nueva: no hay nada que corregir, asi que se puede barrer
             # tres veces mas despacio. Fuera del camion si conviene detectar
             # rapido una pestana que empieza a sonar a todo volumen.
+            #
+            # Al cambiar de camara se reenumera en el acto (forzar): una pestana
+            # que empezo a sonar justo antes del cambio aun no estaria en la
+            # lista, y se oiria desde fuera hasta el siguiente barrido.
             intervalo = (ControlAudio.INTERVALO_SCAN_CABINA if interior
                          else ControlAudio.INTERVALO_SCAN)
-            sesiones_nuevas = control.refrescar(pid, intervalo=intervalo)
+            sesiones_nuevas = control.refrescar(pid,
+                                                forzar=cambio_camara and not interior,
+                                                intervalo=intervalo)
             n = control.n_sesiones
             with estado.lock:
                 estado.sesiones = n
@@ -1133,39 +1224,31 @@ def hilo_audio(estado, parar, rastreador, hook):
                 if ahora - aviso_sin_sesion > 60:
                     aviso_sin_sesion = ahora
                     log("Aun sin sesiones de audio del WebView2 (abre Spotify/YouTube en la tablet).")
-                ultimo_interior = None
-                parar.wait(1.0)
+                # ultimo_interior NO se toca: si el jugador cambia de camara sin
+                # musica abierta, el siguiente barrido con sesiones ya la aplica
+                # por sesiones_nuevas (la firma habra cambiado de vacia a llena).
+                dormir(1.0)
                 continue
 
-            destino = 1.0 if interior else cfg["exterior_pct"] / 100.0
+            # Toda la decision de audio, en una linea. Sin fundido: el enunciado
+            # es "detener inmediatamente", y un fundido de salida es justamente
+            # musica sonando fuera de la cabina durante 250 ms.
+            destino = GANANCIA_CABINA if interior else GANANCIA_EXTERIOR
 
-            # Cambio de camara -> arrancar un fundido en vez de un corte seco.
-            if interior != ultimo_interior:
-                fade_desde = control.ganancia if control.ganancia is not None else destino
-                # La primera aplicacion tras encontrar sesiones va sin fundido:
-                # no hay nada de donde venir.
-                fade_dur = cfg["fade_ms"] / 1000.0 if ultimo_interior is not None else 0.0
-                fade_hasta = destino
-                fade_t0 = time.monotonic()
+            # aplicar() no escribe si el valor no ha cambiado, asi que las
+            # vueltas de vigilancia no cuestan ni una llamada COM. Se fuerza solo
+            # cuando hay sesiones nuevas -nacen con el canal a 1.0 y se oirian a
+            # todo volumen estando fuera- o cuando acabamos de cambiar de camara.
+            control.aplicar(destino, forzar=sesiones_nuevas or cambio_camara)
+            if cambio_camara:
                 ultimo_interior = interior
+                log("Audio " + ("ACTIVADO (camara 1)" if interior
+                                else f"SILENCIADO (camara {camara})"))
 
-            transcurrido = time.monotonic() - fade_t0
-            if fade_dur > 0 and transcurrido < fade_dur:
-                # Curva suave (ease-in-out) para que el cambio no se note escalonado.
-                t = transcurrido / fade_dur
-                suave = t * t * (3 - 2 * t)
-                control.aplicar(fade_desde + (fade_hasta - fade_desde) * suave)
-                parar.wait(0.016)
-                continue
-
-            # Estado estable. aplicar() no escribe si el valor no ha cambiado,
-            # salvo que hayan aparecido sesiones nuevas: esas nacen con el canal
-            # a 1.0 y se oirian a todo volumen estando fuera del camion.
-            control.aplicar(destino, forzar=sesiones_nuevas)
-            # En cabina, con la ganancia ya en 1.0, no hay nada que vigilar cada
-            # 250 ms: se despierta la mitad de veces y el servicio se queda
-            # practicamente a cero de CPU mientras se conduce.
-            parar.wait(0.5 if interior else 0.25)
+            # Estas esperas ya no marcan la latencia del corte -eso lo hace
+            # senal_camara- sino cada cuanto se busca una pestana nueva. Por eso
+            # pueden ser largas: en cabina el servicio se queda dormido de verdad.
+            dormir(intervalo)
     finally:
         # Pase lo que pase, nunca dejar al usuario con la musica atenuada.
         try:
@@ -1527,20 +1610,19 @@ class Manejador(BaseHTTPRequestHandler):
             self._responder({"ok": 0, "error": "json invalido"}, 400)
             return
 
+        # exterior_pct y fade_ms se siguen aceptando en el cuerpo -el overlay los
+        # manda- pero se descartan: fuera de la camara 1 el audio esta silenciado
+        # y no hay nivel intermedio que ofrecer. La respuesta los devuelve en 0,
+        # que es lo que el panel pinta como "silenciado".
         with self.estado.lock:
             if "enabled" in datos:
                 self.estado.cfg["enabled"] = bool(datos["enabled"])
-            if "exterior_pct" in datos:
-                try:
-                    self.estado.cfg["exterior_pct"] = max(0, min(100, int(datos["exterior_pct"])))
-                except (TypeError, ValueError):
-                    pass
-            if "fade_ms" in datos:
-                try:
-                    self.estado.cfg["fade_ms"] = max(0, min(2000, int(datos["fade_ms"])))
-                except (TypeError, ValueError):
-                    pass
+            for clave in CONFIG_FIJA:
+                self.estado.cfg[clave] = 0
             cfg = dict(self.estado.cfg)
+        # Que activar/desactivar el audio inmersivo desde el overlay surta efecto
+        # ya, sin esperar a la siguiente vuelta del hilo de audio.
+        self.estado.senal_camara.set()
         guardar_config(cfg)
         log(f"Configuracion actualizada desde el overlay: {cfg}")
         self._responder(self.estado.instantanea())
@@ -1585,8 +1667,8 @@ def diagnostico():
     cfg = cargar_config()
     print(f"\nConfiguracion  : {RUTA_CONFIG}")
     print(f"  activo       : {cfg['enabled']}")
-    print(f"  exterior     : {cfg['exterior_pct']}%")
-    print(f"  fundido      : {cfg['fade_ms']} ms")
+    print(f"  camara 1     : audio ACTIVADO ({GANANCIA_CABINA * 100:.0f}%)")
+    print(f"  resto        : audio SILENCIADO ({GANANCIA_EXTERIOR * 100:.0f}%), corte inmediato")
     print(f"  puerto       : {cfg['port']}")
 
     perfil = perfil_mas_reciente()
@@ -1683,7 +1765,8 @@ def main():
 
     log("=" * 60)
     log(f"Audio Inmersivo 3D iniciado. Perfil '{estado.perfil}' ({origen}).")
-    log(f"Exterior al {cfg['exterior_pct']}%, fundido {cfg['fade_ms']} ms.")
+    log("Audio exclusivo de la camara 1: en cabina suena, en cualquier otra "
+        "camara queda en silencio total (corte inmediato, sin fundido).")
 
     if arrancar_servidor(estado) is None:
         return 1
@@ -1699,6 +1782,9 @@ def main():
     def parada_ordenada():
         parar.set()
         aviso_teclas.set()
+        # El hilo de audio duerme en senal_camara, no en parar: hay que tocarle
+        # el hombro por ahi o se quedaria esperando hasta el proximo barrido.
+        estado.senal_camara.set()
         hook.terminar()
 
     estado.parada = parada_ordenada

@@ -12,9 +12,11 @@ MULTIMEDIA ATS SANTI - Official Master Build Script
 6. Aviso "MOUSE ACTIVO" del modo interactivo (F8): textos en español, arreglo
    de las longitudes que el compilador dejó fijas para el prefijo y el sufijo,
    y repintado con la paleta azul de la multimedia.
-7. Orientación de las pantallas: fija las banderas de V-flip de cada preset
-   (la pantalla del mod de Scania lo lleva ACTIVADO) para que no se pierdan
-   en cada recompilación.
+7. Ocurrencia del render target de la Multimedia Compacta: SU preset venia con
+   hit index 0, que significa "pinta en TODAS las ocurrencias", y por eso la
+   multimedia salia tambien en el cuadro de instrumentos (DIC).
+8. Orientación de las pantallas: fija las banderas de V-flip de cada preset
+   para que no se pierdan en cada recompilación.
 ================================================================================
 """
 import pefile
@@ -373,19 +375,134 @@ print(f' [OK] Aviso del modo raton en espanol: "{TITULO.decode()}" / '
       f'"{(PREFIJO + b"F8" + SUFIJO).decode()}"')
 
 # ------------------------------------------------------------------------------
-# 6. Orientacion de las pantallas (V-flip)
+# 7. Ocurrencia del render target de la "Multimidia Compacta"
+# ------------------------------------------------------------------------------
+# POR QUE LA MULTIMEDIA SALIA TAMBIEN EN EL CUADRO DE INSTRUMENTOS
+# ------------------------------------------------------------------------------
+# El rtHash con el que el mod localiza una pantalla es un FNV-1a del DESCRIPTOR
+# de la textura (Width, Height, MipLevels, Format, ArraySize), no del recurso.
+# Dos render targets distintos con el mismo tamano y formato dan el MISMO hash.
+# En la cabina, la radio central y la pantallita del cuadro de instrumentos (DIC)
+# son dos RT de 256x256 identicos en descriptor: los dos son E2A0D7B1DF649166 y
+# no hay forma de separarlos por hash.
+#
+# Para eso existe el hit index: la DLL cuenta las ocurrencias de ese RT dentro
+# del frame y solo pinta la que coincide. El preset "scania" venia con el hit
+# index a **0**, y 0 significa "pinta en TODAS": de ahi que la multimedia
+# apareciera a la vez en la radio y en el cuadro de instrumentos. No es una
+# segunda instancia del reproductor ni una copia del contenido, es el MISMO
+# pintado ejecutandose dos veces por frame.
+#
+# La tabla que de verdad se usa se construye en .text (constructor estatico del
+# mapa rtHash -> preset), con entradas de 24 bytes:
+#     u64 hash | f32 | f32 | u32 hit | u8 flip | u8 flip_split | 2 de relleno
+# La tabla parecida de .rdata (0x180143e10) no tiene ninguna referencia desde el
+# codigo: parchearla no hace nada.
+#
+# El bloque del preset scania ocupa 24 bytes y no sobra sitio, asi que el hueco
+# sale de la copia de los 2 bytes de RELLENO de la estructura (movzx eax,
+# word [rbp-0x1b] + mov [rbp-0x03], ax). Esa copia es prescindible -son bytes de
+# alineacion dentro de un valor de mapa, nadie los lee- y fix_flip_pantalla.py
+# ya la sobrescribe por su cuenta al convertir la forma "bx" en la forma "imm".
+#
+# La instruccion del V-flip se deja EXACTAMENTE donde estaba (tabla+0x44) para
+# que fix_flip_pantalla.py siga encontrandola en su offset de siempre y el paso
+# 8 pueda fijar el flip sin enterarse de este parche.
+TABLA_PRESETS_VA = 0x180001360
+SCANIA_VA = TABLA_PRESETS_VA + 0x3A     # primer byte del bloque a reescribir
+
+# DE DONDE SALEN LOS VALORES NUEVOS: ESCALA DE MULTIMEDIA CENTRAL Y HIT = 1
+# ------------------------------------------------------------------------------
+# Comparando los cuatro presets de la DLL base, el de la Multimidia Compacta era
+# el unico distinto EN TODOS los campos:
+#
+#     preset               f32 #1    f32 #2   hit   flip
+#     Multimedia Central   0.31000   0.38000    3   (0,0)
+#     GPS Parabrisas       0.31000   0.38000    1   (0,0)
+#     GPS Movil            0.31000   0.38000    1   (0,0)
+#     Multimidia Compacta  0.31800   0.36300    0   (1,1)   <- el raro
+#
+# Se le asigna la misma escala f32 (0.31000 / 0.38000) de Multimedia Central,
+# hit = 1 (para renderizar de inmediato en la cabina del Scania) y flip = (0, 0).
+CENTRAL_F1 = TABLA_PRESETS_VA + 0x63     # imm32 del primer float (Multimedia Central: 0x1800013c3)
+CENTRAL_F2 = TABLA_PRESETS_VA + 0x6A     # imm32 del segundo float (Multimedia Central: 0x1800013ca)
+
+_f1 = bytes(dll[va_to_offset(CENTRAL_F1):va_to_offset(CENTRAL_F1) + 4])
+_f2 = bytes(dll[va_to_offset(CENTRAL_F2):va_to_offset(CENTRAL_F2) + 4])
+_hit = struct.pack('<I', 1)              # hit = 1 para que pinte de inmediato en cabina
+
+print(f' [..] Configurando Multimedia Compacta (Scania mod): '
+      f'f32 {struct.unpack("<f", _f1)[0]:.5f} / {struct.unpack("<f", _f2)[0]:.5f}, '
+      f'hit {int.from_bytes(_hit, "little")}')
+
+# Primer float de la Compacta: instruccion propia, justo antes del bloque.
+_off_f1_sc = va_to_offset(TABLA_PRESETS_VA + 0x36)
+if bytes(dll[_off_f1_sc - 3:_off_f1_sc]) != bytes.fromhex('c745ef'):
+    raise SystemExit(' [ERROR] El primer float del preset scania no esta donde se esperaba.')
+dll[_off_f1_sc:_off_f1_sc + 4] = _f1
+
+_off_sc = va_to_offset(SCANIA_VA)
+_orig_sc = bytes(dll[_off_sc:_off_sc + 24])
+_esperado_sc = bytes.fromhex(
+    '48c745f323dbb93e'      # mov qword [rbp-0x0D], 0x3EB9DB23  (f32 + hit = 0)
+    '33db'                  # xor  ebx, ebx
+    '66c745fb0101'          # mov  word  [rbp-0x05], 0x0101     (flip, flip_split)
+    '0fb745e5'              # movzx eax, word [rbp-0x1b]        (copia de relleno)
+    '668945fd'              # mov  [rbp-0x03], ax               (copia de relleno)
+)
+if _orig_sc != _esperado_sc:
+    raise SystemExit(
+        f' [ERROR] El bloque del preset scania en {SCANIA_VA:#x} no es el esperado.\n'
+        f'         hay: {_orig_sc.hex()}\n'
+        f'         esp: {_esperado_sc.hex()}')
+
+# Los 2 bytes de valor del flip, tal cual estaban: van detras de los 4 de opcode
+# del 'mov word [rbp-0x05], imm16', que empieza en el byte 10 del bloque.
+_flip_orig = _orig_sc[14:16]
+_nuevo_sc = (
+    bytes.fromhex('c745f3') + _f2       # mov dword [rbp-0x0D], f32 #2 de Multimedia Central
+    + b'\x90'                           # nop  (el qword original ocupaba un byte mas)
+    + bytes.fromhex('33db')             # xor  ebx, ebx   (los otros presets lo usan a 0)
+    + bytes.fromhex('66c745fb') + _flip_orig   # mov word [rbp-0x05], flip  <- MISMO offset
+    + bytes.fromhex('c745f7') + _hit    # mov dword [rbp-0x09], hit = 1
+    + b'\x90'                           # nop
+)
+if len(_nuevo_sc) != 24:
+    raise SystemExit(f' [ERROR] El bloque nuevo mide {len(_nuevo_sc)} bytes y tienen que ser 24.')
+dll[_off_sc:_off_sc + 24] = _nuevo_sc
+print(f' [OK] Multimedia Compacta: configurada con escala de Central y hit 1 en 4K Ultra HD')
+
+# NO se toca la comparacion del hit index de 0x1800c2256 (el `je`). Es codigo
+# COMPARTIDO por los cuatro presets: cambiarlo a `jge` alteraria tambien el
+# comportamiento de la Multimedia Central, el GPS Parabrisas y el GPS Movil, y
+# aqui solo hay que corregir la Multimedia Compacta. El unico cambio de este
+# paso es el valor por defecto de SU preset, que es un dato suyo y de nadie mas.
+
+# ------------------------------------------------------------------------------
+# 8. Orientacion de las pantallas (V-flip)
 # ------------------------------------------------------------------------------
 # Cada preset de pantalla guarda dos banderas: flip (invierte la textura en
 # vertical al pintarla sobre el mesh del camion) y flip_split (fuerza el reparto
-# vertical en pantalla dividida). La malla de la "Multimidia Compacta / Scania"
-# tiene las UV al reves, asi que ESE preset necesita el V-flip ACTIVADO; los
-# otros tres no. Son los valores con los que se calibro el mod y los que aqui se
-# fijan de forma explicita en cada recompilacion.
+# vertical en pantalla dividida).
 #
-# 2026-08-29: el build anterior forzaba (0, 0) en los cuatro presets, lo que
-# dejaba la pantalla del mod de Scania siempre boca abajo. Comprobado en juego.
+# 2026-08-30: la Multimidia Compacta salia BOCA ABAJO con el V-flip activado, asi
+# que este preset pasa a (0, 0) como los otros tres. El historial de este valor
+# es accidentado -estuvo en (0,0) el 28/08, se subio a (1,1) el 29/08 porque
+# entonces salia al reves, y ahora vuelve a (0,0)-, y la razon de fondo es que el
+# flip va por HASH DE RENDER TARGET, no por camion: 256x256 es un tamano
+# generico, asi que mallas de cabinas distintas caen en el mismo preset con las
+# UV en sentidos opuestos y una sola bandera no puede servir a las dos. Si
+# alguna vez vuelve a verse invertida, se cambia sin recompilar con:
+#     python fix_flip_pantalla.py --preset scania --flip on
+#
+# OJO AL CURSOR: el cursor del modo F8 no pasa por el shader del contenido, se
+# graba directo en el render target, asi que en un preset con flip=1 sale
+# espejado y hace falta compensarlo dentro de roadworks_cursor.hlsl. Con (0,0)
+# NO hay que compensar nada, y el roadworks_cursor.hlsl de este repo no lleva
+# compensacion: los dos valores son coherentes tal y como estan. Si se vuelve a
+# poner flip=1 hay que reponer tambien esa linea en el .hlsl.
 ORIENTACION = {
-    "scania":  (1, 1),   # mesh con UV invertidas -> hay que compensar
+    "scania":  (0, 0),   # UV estandar en la malla de este camion
     "central": (0, 0),
     "vidrio":  (0, 0),
     "celular": (0, 0),
@@ -405,6 +522,76 @@ for _clave, _preset in flip.PRESETS.items():
     else:
         print(f" [OK] V-flip ya correcto {_quiero} en '{_clave}' ({_preset['titulo']})")
 dll = bytearray(_dll_flip)
+
+# ------------------------------------------------------------------------------
+# 9. Calidad de imagen: quitar --disable-gpu de los argumentos del WebView2
+# ------------------------------------------------------------------------------
+# La DLL llama a SetEnvironmentVariableW(L"WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS")
+# con una cadena UTF-16 que traia --disable-gpu. Ese flag mete a Chromium ENTERO
+# en rasterizacion por software: el texto sale emborronado, los degradados con
+# bandas y el video a tirones, porque cada pixel de la pagina lo compone la CPU.
+# Es la causa de que la multimedia se viera de baja calidad.
+#
+# Los otros tres flags SI hacen falta y se conservan: la ventana anfitriona del
+# WebView2 esta oculta, y sin ellos Chromium considera que la pestana no se ve y
+# la estrangula a ~1 fps.
+#
+# La cadena es NUL-terminated y sin longitud fija en ningun sitio, asi que basta
+# con reescribirla mas corta y rellenar con ceros.
+ARGS_VA = 0x180169840
+FLAG_FUERA = ' --disable-gpu'
+
+_off_args = va_to_offset(ARGS_VA)
+_fin_args = _off_args
+while dll[_fin_args:_fin_args + 2] != b'\x00\x00':
+    _fin_args += 2
+_args = bytes(dll[_off_args:_fin_args]).decode('utf-16-le')
+
+if FLAG_FUERA not in _args:
+    print(f' [OK] Argumentos del WebView2: {FLAG_FUERA.strip()} ya no estaba')
+else:
+    _args_nuevo = _args.replace(FLAG_FUERA, '')
+    _cod = _args_nuevo.encode('utf-16-le')
+    if len(_cod) > _fin_args - _off_args:
+        raise SystemExit(' [ERROR] Los argumentos nuevos del WebView2 no caben.')
+    dll[_off_args:_fin_args] = _cod + bytes(_fin_args - _off_args - len(_cod))
+    print(f' [OK] Calidad: quitado {FLAG_FUERA.strip()} de los argumentos del WebView2 '
+          f'(se acabo la rasterizacion por software)')
+
+# ------------------------------------------------------------------------------
+# 10. Resolucion Full 4K Ultra HD (3840 px) para WebView2 y Multimedia Compacta
+# ------------------------------------------------------------------------------
+# De fabrica, la DLL limitaba la dimension maxima de la textura del WebView2 a
+# 800 pixeles (0x320) mediante varias instrucciones hardcoded. En pantallas de
+# cabina o mods como Multimedia Compacta, esto hacia que la interfaz y el
+# contenido se escalaran con perdida de nitidez y aspecto borroso.
+#
+# Aqui elevamos el limite de 800 px a 3840 px (0xF00 = 4K Ultra HD) en todas las
+# rutinas de calculo de resolucion y viewport.
+RES_4K = 3840  # 0xF00 (4K UHD)
+_res_bytes = struct.pack('<I', RES_4K)
+_res_orig = struct.pack('<I', 0x320)
+
+_patches_4k = [
+    (0x1800c237e + 1, 'mov esi, 3840 (ancho D3D11)'),
+    (0x1800c2383 + 3, 'imul rax, rdx, 3840 (alto D3D11)'),
+    (0x1800c2394 + 2, 'mov r13d, 3840 (alto D3D11)'),
+    (0x1800c239a + 3, 'imul rax, rcx, 3840 (ancho D3D11)'),
+    (0x1800ce4d5 + 3, 'imul rax, r8, 3840 (ancho WebView2)'),
+    (0x1800ce4e9 + 1, 'mov ebp, 3840 (alto WebView2)'),
+    (0x1800ce505 + 2, 'mov r14d, 3840 (ancho WebView2)'),
+    (0x1800ce50b + 3, 'imul rax, rcx, 3840 (alto WebView2)'),
+]
+
+for _va, _tag in _patches_4k:
+    _off = va_to_offset(_va)
+    if bytes(dll[_off:_off+4]) == _res_orig:
+        dll[_off:_off+4] = _res_bytes
+        print(f' [OK] Calidad 4K Ultra HD: {_tag} aplicado ({RES_4K} px)')
+    elif bytes(dll[_off:_off+4]) == _res_bytes:
+        print(f' [OK] Calidad 4K Ultra HD: {_tag} ya activo ({RES_4K} px)')
+    else:
+        print(f' [AVISO] Patron en {_va:#x} ({_tag}) no coincidio: {bytes(dll[_off:_off+4]).hex()}')
 
 pe.close()
 del pe
