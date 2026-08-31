@@ -483,7 +483,12 @@ TH32CS_SNAPPROCESS = 0x00000002
 INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
 SYNCHRONIZE = 0x00100000
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+PROCESS_TERMINATE = 0x0001
 WAIT_TIMEOUT = 0x00000102
+
+# Margen que se le da a los WebView2 del mod para cerrarse solos cuando ATS
+# termina. Pasado ese tiempo, los que sigan vivos son huerfanos de verdad.
+GRACIA_HUERFANOS = 6.0
 THREAD_PRIORITY_ABOVE_NORMAL = 1
 THREAD_PRIORITY_BELOW_NORMAL = -1
 
@@ -523,6 +528,8 @@ kernel32.GetCurrentThreadId.restype = wintypes.DWORD
 kernel32.GetCurrentThread.restype = wintypes.HANDLE
 kernel32.SetThreadPriority.argtypes = [wintypes.HANDLE, ctypes.c_int]
 kernel32.SetThreadPriority.restype = wintypes.BOOL
+kernel32.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
+kernel32.TerminateProcess.restype = wintypes.BOOL
 
 
 def censo_procesos():
@@ -872,6 +879,111 @@ def _camara_de_tecla(mapa, vk):
 
 
 # ==============================================================================
+# Recogida de los WebView2 que el mod deja huerfanos al cerrar el juego
+# ==============================================================================
+#
+# POR QUE HACE FALTA ESTO
+# ------------------------------------------------------------------------------
+# La multimedia del mod corre dentro de msedgewebview2.exe, y ese arbol de
+# procesos NO siempre muere con ATS: al cerrar el juego se quedan vivos el
+# proceso raiz y sus hijos (GPU, red, renderer, uno por pestana). Como no tienen
+# ventana, el jugador no los ve, pero siguen ahi ocupando memoria. Y se ACUMULAN:
+# cada partida deja otra tanda. Medido en este equipo con el juego ya cerrado:
+# 25 procesos y 1,4 GB de RAM retenidos. De ahi que el equipo se arrastre despues
+# de jugar y que cerrar el juego se sienta como un tiron.
+#
+# COMO SE HACE SIN RIESGO
+# ------------------------------------------------------------------------------
+# Solo se tocan los WebView2 que cuelgan del PID de ATS: se recorre la
+# descendencia completa del juego (el WebView2 raiz cuelga de ATS y los de
+# GPU/red/renderer cuelgan a su vez de ese raiz). Nunca se mata "cualquier
+# msedgewebview2.exe", porque WhatsApp, Copilot y el propio Windows usan el mismo
+# ejecutable y les estariamos cerrando la aplicacion al usuario.
+#
+# Los handles se abren MIENTRAS el juego vive, que es cuando se puede establecer
+# el parentesco. Despues ya no haria falta: al morir ATS se pierde el arbol. Un
+# handle abierto ademas fija la identidad del proceso, asi que Windows no puede
+# reciclar ese PID y colarnos otro programa entre medias.
+#
+# Al detectar que ATS se ha ido se les da GRACIA_HUERFANOS segundos para cerrarse
+# solos (lo normal) y solo se remata a los que sigan vivos pasado ese margen.
+
+class RecolectorWebView:
+    def __init__(self):
+        self._handles = {}      # pid -> HANDLE
+        self._pid_juego = 0
+
+    def observar(self, pid_juego, censo):
+        """
+        Apunta los msedgewebview2.exe que cuelgan de ATS. Barato: solo recorre el
+        censo que ya esta en memoria, sin abrir procesos ni usar psutil.
+        """
+        if pid_juego != self._pid_juego:
+            self.soltar()
+            self._pid_juego = pid_juego
+
+        hijos = {}
+        for pid, (_nombre, ppid) in censo.items():
+            hijos.setdefault(ppid, []).append(pid)
+
+        pendientes = list(hijos.get(pid_juego, ()))
+        vistos = set()
+        while pendientes:
+            pid = pendientes.pop()
+            if pid in vistos:
+                continue
+            vistos.add(pid)
+            pendientes.extend(hijos.get(pid, ()))
+            dato = censo.get(pid)
+            if dato and dato[0] == WEBVIEW_EXE and pid not in self._handles:
+                h = kernel32.OpenProcess(
+                    PROCESS_TERMINATE | SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION,
+                    False, pid)
+                if h:
+                    self._handles[pid] = h
+
+    def _vivos(self):
+        muertos = []
+        for pid, h in self._handles.items():
+            if kernel32.WaitForSingleObject(h, 0) != WAIT_TIMEOUT:
+                muertos.append(pid)
+        for pid in muertos:
+            kernel32.CloseHandle(self._handles.pop(pid))
+        return list(self._handles.items())
+
+    def recolectar(self, parar):
+        """Llamar justo despues de que ATS desaparezca."""
+        if not self._handles:
+            return 0
+        total = len(self._handles)
+        fin = time.monotonic() + GRACIA_HUERFANOS
+        while time.monotonic() < fin:
+            if not self._vivos():
+                break
+            if parar.wait(0.5):
+                break
+
+        rematados = 0
+        for pid, h in self._vivos():
+            if kernel32.TerminateProcess(h, 0):
+                rematados += 1
+            else:
+                log(f"No se pudo cerrar el WebView2 huerfano {pid} "
+                    f"(error {ctypes.get_last_error()}).")
+        self.soltar()
+        if rematados:
+            log(f"WebView2 huerfanos del mod cerrados: {rematados} de {total} "
+                f"(el resto se cerro solo).")
+        return rematados
+
+    def soltar(self):
+        for h in self._handles.values():
+            kernel32.CloseHandle(h)
+        self._handles.clear()
+        self._pid_juego = 0
+
+
+# ==============================================================================
 # Control de volumen WASAPI sobre las sesiones del WebView2
 # ==============================================================================
 #
@@ -1128,6 +1240,8 @@ def hilo_audio(estado, parar, rastreador, hook):
     comtypes.CoInitialize()
     prioridad_hilo(THREAD_PRIORITY_BELOW_NORMAL)
     control = ControlAudio()
+    recolector = RecolectorWebView()
+    ultimo_censo = 0.0          # ultima vez que se apunto la descendencia de ATS
     ultimo_interior = None      # None = todavia no hemos aplicado nada
     aviso_sin_sesion = 0.0
     apagado = False             # la funcion esta desactivada y ya hemos soltado
@@ -1164,6 +1278,11 @@ def hilo_audio(estado, parar, rastreador, hook):
                 if control.n_sesiones or control.ganancia is not None:
                     control.soltar()
                     log("ATS cerrado: ganancia inmersiva liberada (volumen del usuario intacto).")
+                # El juego se ha ido: rematar los WebView2 del mod que hayan
+                # sobrevivido. Sin esto se acumulan partida tras partida y acaban
+                # reteniendo mas de un giga con el juego ya cerrado.
+                recolector.recolectar(parar)
+                ultimo_censo = 0.0
                 ultimo_interior = None
                 with estado.lock:
                     estado.juego_activo = False
@@ -1177,6 +1296,17 @@ def hilo_audio(estado, parar, rastreador, hook):
                     estado.interior = True
                 parar.wait(2.0)
                 continue
+
+            # Apuntar la descendencia WebView2 de ATS mientras el juego vive, que
+            # es cuando se puede establecer el parentesco. Cada 5 s basta y cuesta
+            # una sola foto de procesos.
+            ahora_censo = time.monotonic()
+            if ahora_censo - ultimo_censo > 5.0:
+                ultimo_censo = ahora_censo
+                try:
+                    recolector.observar(pid, censo_procesos())
+                except Exception as e:
+                    log(f"No se pudo apuntar la descendencia del juego: {e}")
 
             with estado.lock:
                 estado.juego_activo = True
@@ -1258,6 +1388,16 @@ def hilo_audio(estado, parar, rastreador, hook):
             pass
         try:
             hook.apagar()
+        except Exception:
+            pass
+        try:
+            # Si el que se cierra es este servicio y el juego sigue vivo, NO se
+            # rematan sus WebView2: la tablet del camion tiene que seguir
+            # funcionando. Solo se sueltan los handles.
+            if rastreador.pid:
+                recolector.soltar()
+            else:
+                recolector.recolectar(parar)
         except Exception:
             pass
         try:
@@ -1374,6 +1514,24 @@ SGDS_ACTIVE = 1
 SGDS_INACTIVE = 0
 
 
+def _interfaz_eventos_sapi(cc):
+    """
+    Devuelve _ISpeechRecoContextEvents, generando el typelib si hiciera falta.
+
+    comtypes no trae las interfaces COM escritas: las genera leyendo el typelib y
+    las deja como modulos .py en comtypes/gen. Dentro del .exe ese directorio es
+    de solo lectura, asi que tienen que viajar ya generados (lo hace el .spec).
+    Si aun asi faltaran, se intenta generarlos en caliente desde sapi.dll, que es
+    la via que funciona al ejecutar el .py suelto.
+    """
+    try:
+        from comtypes.gen.SpeechLib import _ISpeechRecoContextEvents
+    except ImportError:
+        cc.GetModule("sapi.dll")
+        from comtypes.gen.SpeechLib import _ISpeechRecoContextEvents
+    return _ISpeechRecoContextEvents
+
+
 class ControlVoz:
     """Reconocedor de comandos en espanol. Arranca y para bajo demanda."""
 
@@ -1474,7 +1632,7 @@ class ControlVoz:
         comtypes.CoInitializeEx(comtypes.COINIT_APARTMENTTHREADED)
         try:
             import comtypes.client as cc
-            from comtypes.gen.SpeechLib import _ISpeechRecoContextEvents
+            _ISpeechRecoContextEvents = _interfaz_eventos_sapi(cc)
 
             motor = cc.CreateObject("SAPI.SpInprocRecognizer")
             entradas = motor.GetAudioInputs()
@@ -1714,6 +1872,36 @@ def diagnostico():
         comtypes.CoUninitialize()
     except Exception as e:
         print(f"\nERROR al enumerar audio: {e}")
+
+    # -- Control por voz --------------------------------------------------------
+    # Se comprueba aqui porque es la unica forma de saber si el .exe congelado
+    # lleva dentro las interfaces COM generadas: son modulos .py que comtypes
+    # normalmente crea al vuelo en site-packages, y dentro del .exe no puede.
+    print("\nControl por voz:")
+    try:
+        import comtypes
+        import comtypes.client as cc
+        comtypes.CoInitializeEx(comtypes.COINIT_APARTMENTTHREADED)
+        try:
+            _interfaz_eventos_sapi(cc)
+            print("  interfaces   : SpeechLib disponible")
+            motor = cc.CreateObject("SAPI.SpInprocRecognizer")
+            micros = motor.GetAudioInputs()
+            print(f"  microfonos   : {micros.Count}")
+            for i in range(micros.Count):
+                print(f"     - {micros.Item(i).GetDescription()}")
+            recos = motor.GetRecognizers()
+            print(f"  reconocedores: {recos.Count}")
+            for i in range(recos.Count):
+                print(f"     - {recos.Item(i).GetDescription()}")
+            if micros.Count and recos.Count:
+                print("  estado       : LISTO (activalo desde la multimedia)")
+            else:
+                print("  estado       : falta microfono o reconocedor es-ES en Windows")
+        finally:
+            comtypes.CoUninitialize()
+    except Exception as e:
+        print(f"  estado       : NO DISPONIBLE -> {type(e).__name__}: {e}")
 
     print(f"\nLog            : {RUTA_LOG}")
     print("=" * 78)

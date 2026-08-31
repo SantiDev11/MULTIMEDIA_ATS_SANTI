@@ -678,9 +678,9 @@ function mouseColorSet(c) {
 function selectDevice(dev) {
   state.rtHash = dev.hash;
   try { localStorage.setItem('mmats_selected_hash', dev.hash); } catch(e) {}
-  postMsg({action:'selectHash', hash:dev.hash});
-  postMsg({action:'startMm', hash:dev.hash});
-  setMmRunning(true, 'lucidgfx_home.html');
+  if (state.mmRunning) {
+    postMsg({action:'startMm', hash:dev.hash});
+  }
   updateSourceCards();
 }
 
@@ -936,11 +936,6 @@ window.addEventListener('load', function() {
   })();
   postMsg({action:'getState'});
   postMsg({action:'licensequery'});
-  if (state.rtHash) {
-    postMsg({action:'selectHash', hash:state.rtHash});
-    postMsg({action:'startMm', hash:state.rtHash});
-    setMmRunning(true, 'lucidgfx_home.html');
-  }
 });
 </script>
 </body>

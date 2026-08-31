@@ -93,7 +93,7 @@ for j, (off_b, res_name, file_path) in enumerate(_bloques):
     tope = siguientes[0] if siguientes else _fin_sec
     hueco = tope - off_b
     with open(file_path, 'r', encoding='utf-8') as f:
-        nuevo = len(f.read().encode('utf-8'))
+        nuevo = len(f.read().replace('\r\n', '\n').encode('utf-8'))
     if nuevo > hueco:
         _desbordes.append(f"   - {res_name}: {nuevo} bytes, solo caben {hueco} "
                           f"(sobran {nuevo - hueco})")
@@ -125,7 +125,7 @@ for i, (res_name, file_path) in enumerate(files_map):
     k2 = dll[k2_off : k2_off + key_len]
 
     with open(file_path, 'r', encoding='utf-8') as f:
-        new_content = f.read()
+        new_content = f.read().replace('\r\n', '\n')
 
     new_bytes = new_content.encode('utf-8')
     enc_bytes = encrypt_dual_key_xor(new_bytes, k1, k2)
@@ -134,14 +134,19 @@ for i, (res_name, file_path) in enumerate(files_map):
     print(f" [OK] Recurso inyectado: {res_name} ({len(new_bytes)} bytes)")
 
 # ------------------------------------------------------------------------------
-# 2. Desbloqueos de Renderizado y Navegación con Mouse
+# 2. Desbloqueo de Licencia Universal y Compuerta de Inicio de Multimedia
 # ------------------------------------------------------------------------------
-off2 = va_to_offset(0x1800c1bd5)
-dll[off2 : off2 + 6] = b'\x90' * 6
+# Compuerta nativa D3D11: NO renderizar la pantalla en el camión hasta que el
+# usuario pulse INICIAR en el overlay (cuando [rdi + 0x1a0] != 0).
+# 0x1800c1bc7: cmp qword ptr [rdi + 0x1a0], 0; je 0x1800c22b5; nops
+off_render_gate = va_to_offset(0x1800c1bc7)
+dll[off_render_gate : off_render_gate + 20] = bytes.fromhex('4883bfa0010000000f84e0060000909090909090')
 
-off3 = va_to_offset(0x1800c212d)
-dll[off3 : off3 + 8] = bytes([0x41, 0xB9, 0x01, 0x00, 0x00, 0x00, 0x90, 0x90])
+# 0x1800c2128: mov rax, [rdi + 0x1a0]; neg rax; sbb r9d, r9d (estado dinámico de mmRunning para getState)
+off_state_report = va_to_offset(0x1800c2128)
+dll[off_state_report : off_state_report + 13] = bytes.fromhex('488b87a001000048f7d84519c9')
 
+# Desbloqueos de planes / navegación web en WebView2 (YouTube, Spotify, etc.)
 off_feat = va_to_offset(0x1800ce420)
 dll[off_feat : off_feat + 3] = bytes([0xB0, 0x01, 0xC3])
 
@@ -151,9 +156,10 @@ off_call = va_to_offset(0x1800cb25a)
 dll[off_call : off_call + 2] = bytes([0x90, 0x90])
 
 lic_off = va_to_offset(0x1801f9290)
-dll[lic_off + 0x80] = 1
-dll[lic_off + 0x81] = 1
-dll[lic_off + 0x31c] = 1
+dll[lic_off + 0x80] = 1   # Licencia activa permanente
+dll[lic_off + 0x81] = 0   # Multimedia apagada al inicio
+dll[lic_off + 0x31c] = 1  # Entitlements activos
+print(" [OK] Compuerta nativa D3D11 configurada (cero render hasta que el usuario pulse INICIAR)")
 
 # ------------------------------------------------------------------------------
 # 3. Tecla Oficial de Navegación F8 (VK_F8 = 0x77 = 119)
@@ -470,7 +476,7 @@ _nuevo_sc = (
 if len(_nuevo_sc) != 24:
     raise SystemExit(f' [ERROR] El bloque nuevo mide {len(_nuevo_sc)} bytes y tienen que ser 24.')
 dll[_off_sc:_off_sc + 24] = _nuevo_sc
-print(f' [OK] Multimedia Compacta: configurada con escala de Central y hit 1 en 4K Ultra HD')
+print(f' [OK] Multimedia Compacta: misma configuracion que el GPS Parabrisas (hit 1)')
 
 # NO se toca la comparacion del hit index de 0x1800c2256 (el `je`). Es codigo
 # COMPARTIDO por los cuatro presets: cambiarlo a `jge` alteraria tambien el
@@ -559,39 +565,76 @@ else:
           f'(se acabo la rasterizacion por software)')
 
 # ------------------------------------------------------------------------------
-# 10. Resolucion Full 4K Ultra HD (3840 px) para WebView2 y Multimedia Compacta
+# 10. Resolucion de render del WebView2 (supermuestreo sobre el render target)
 # ------------------------------------------------------------------------------
 # De fabrica, la DLL limitaba la dimension maxima de la textura del WebView2 a
 # 800 pixeles (0x320) mediante varias instrucciones hardcoded. En pantallas de
 # cabina o mods como Multimedia Compacta, esto hacia que la interfaz y el
 # contenido se escalaran con perdida de nitidez y aspecto borroso.
 #
-# Aqui elevamos el limite de 800 px a 3840 px (0xF00 = 4K Ultra HD) en todas las
-# rutinas de calculo de resolucion y viewport.
-RES_4K = 3840  # 0xF00 (4K UHD)
+# Aqui elevamos ese limite en todas las rutinas de calculo de resolucion y
+# viewport.
+#
+# POR QUE 1920 Y NO 3840 (medido en el juego, no supuesto)
+# ------------------------------------------------------------------------------
+# Con 3840 el propio mod deja esta linea en lucidgfx.log:
+#
+#     [WV2] fit main viewport 3840x1920 p/ RT 512x256
+#
+# Es decir: se calculan 7,4 MILLONES de pixeles para volcarlos en una textura de
+# 131 mil. La nitidez final la topa el destino -512x256 los fija el modelo 3D del
+# camion, no el mod-, asi que todo lo que pase de ahi se tira. Lo que si cuesta
+# es real: a 3840x1920 el WebView2 compone en cada frame una superficie de 29 MB
+# (59 MB en las pantallas cuadradas), y al cerrar el juego hay que desmontar todo
+# eso de golpe. Eso es el tiron al salir.
+#
+# El render target mas grande de los cuatro presets es 1024x512. Con 1920 se
+# siguen calculando ~2 pixeles por cada pixel final en la pantalla mas grande y
+# ~4 en las demas, que es supermuestreo de sobra para que el texto salga limpio.
+# Y cuesta CUATRO VECES MENOS que 3840.
+#
+# Si algun dia una pantalla de un mod fuese mayor que 1024x512, subir este numero
+# es lo unico que hay que tocar.
+RES_4K = 1920
 _res_bytes = struct.pack('<I', RES_4K)
 _res_orig = struct.pack('<I', 0x320)
 
 _patches_4k = [
-    (0x1800c237e + 1, 'mov esi, 3840 (ancho D3D11)'),
-    (0x1800c2383 + 3, 'imul rax, rdx, 3840 (alto D3D11)'),
-    (0x1800c2394 + 2, 'mov r13d, 3840 (alto D3D11)'),
-    (0x1800c239a + 3, 'imul rax, rcx, 3840 (ancho D3D11)'),
-    (0x1800ce4d5 + 3, 'imul rax, r8, 3840 (ancho WebView2)'),
-    (0x1800ce4e9 + 1, 'mov ebp, 3840 (alto WebView2)'),
-    (0x1800ce505 + 2, 'mov r14d, 3840 (ancho WebView2)'),
-    (0x1800ce50b + 3, 'imul rax, rcx, 3840 (alto WebView2)'),
+    (0x1800c237e + 1, 'ancho D3D11'),
+    (0x1800c2383 + 3, 'alto D3D11'),
+    (0x1800c2394 + 2, 'alto D3D11'),
+    (0x1800c239a + 3, 'ancho D3D11'),
+    (0x1800ce4d5 + 3, 'ancho WebView2'),
+    (0x1800ce4e9 + 1, 'alto WebView2'),
+    (0x1800ce505 + 2, 'ancho WebView2'),
+    (0x1800ce50b + 3, 'alto WebView2'),
 ]
 
 for _va, _tag in _patches_4k:
     _off = va_to_offset(_va)
     if bytes(dll[_off:_off+4]) == _res_orig:
         dll[_off:_off+4] = _res_bytes
-        print(f' [OK] Calidad 4K Ultra HD: {_tag} aplicado ({RES_4K} px)')
+        print(f' [OK] Resolucion de render: {_tag} -> {RES_4K} px')
     elif bytes(dll[_off:_off+4]) == _res_bytes:
-        print(f' [OK] Calidad 4K Ultra HD: {_tag} ya activo ({RES_4K} px)')
+        print(f' [OK] Resolucion de render: {_tag} ya en {RES_4K} px')
     else:
         print(f' [AVISO] Patron en {_va:#x} ({_tag}) no coincidio: {bytes(dll[_off:_off+4]).hex()}')
+
+# ------------------------------------------------------------------------------
+# 11. Cierre Limpio del Juego (Eliminación Definitiva del Crash 0xC0000005 al salir)
+# ------------------------------------------------------------------------------
+# Al salir del juego, Windows llama a DllMain con DLL_PROCESS_DETACH. En ese momento
+# Windows ya ha terminado los demás hilos y los dispositivos D3D11 del juego
+# están en proceso de destrucción. Intentar desenganchar la ventana o llamar a
+# destructores de COM / WebView2 accede a memoria ya liberada por el juego y produce
+# el error "La instrucción en 0x... hace referencia a la memoria en 0x... La memoria no se pudo read".
+#
+# Al saltar directamente a la salida limpia de DllMain (mov eax, 1; add rsp, 0x30; pop rbx; ret),
+# el proceso amtrucks.exe se cierra al instante sin errores ni congelaciones, dejando
+# que el kernel de Windows libere todos los recursos limpiamente.
+off_detach = va_to_offset(0x18001e762)
+dll[off_detach : off_detach + 2] = bytes.fromhex('eb58')
+print(" [OK] Cierre limpio del juego configurado (DLL_PROCESS_DETACH -> salida directa sin crashes)")
 
 pe.close()
 del pe

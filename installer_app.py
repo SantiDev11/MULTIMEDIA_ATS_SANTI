@@ -6,16 +6,20 @@ MULTIMEDIA ATS SANTI - Instalador y Gestor Oficial v2.0
 Compatible con Windows 10/11 x64 y American Truck Simulator
 """
 
+import ctypes
 import os
 import sys
 import shutil
 import hashlib
 import datetime
+import time
 import winreg
 import json
 import threading
 import subprocess
-import time
+import urllib.error
+import urllib.request
+from ctypes import wintypes
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
@@ -29,8 +33,24 @@ UNIVERSAL_LICENSE = "MMATS-SANTI-2026-UNIVERSAL"
 # Servicio de Audio Inmersivo 3D por cámara (proceso independiente del mod).
 AUDIO_HELPER_EXE = "mmats_audio_inmersivo.exe"
 AUDIO_HELPER_RUN_KEY = "MULTIMEDIA ATS SANTI - Audio Inmersivo"
-# Puerto local del servicio; por el se le pide que se apague sin matarlo.
 AUDIO_HELPER_PORT = 48221
+GAME_EXE = "amtrucks.exe"
+
+# Copias de seguridad que se conservan en la carpeta del juego. Cada instalación
+# creaba una carpeta nueva de ~3 MB y ninguna se borraba nunca: en este equipo
+# se habían acumulado 52 carpetas (168 MB) dentro de bin\win_x64.
+BACKUPS_A_CONSERVAR = 3
+
+# Lo que NO se copia a la carpeta del juego desde MENU_EXTRAIDO. Son copias de
+# seguridad del propio desarrollo y notas en texto plano: el WebView no las abre
+# nunca y solo ensucian bin\win_x64.
+MENU_DIRS_EXCLUIDOS = {"BACKUP"}
+MENU_ARCHIVOS_EXCLUIDOS = {
+    "ANALISIS.TXT",
+    "CAMBIOS_MULTIMEDIAATS.TXT",
+    "CAMBIOS_MULTIMEDIA_ATS_SANTI.TXT",
+    "DLL_UPDATE_REPORT.TXT",
+}
 
 def get_bundle_dir():
     """Retorna el directorio donde residen los recursos empaquetados por PyInstaller o en modo desarrollo."""
@@ -76,48 +96,354 @@ def get_source_files():
 # SERVICIO DE AUDIO INMERSIVO 3D POR CÁMARA
 # ==============================================================================
 
-def stop_audio_helper():
+def stop_audio_helper(log=None):
     """
-    Detiene el servicio de audio si está corriendo (para poder sobrescribirlo).
+    Detiene el servicio de audio y NO vuelve hasta que el proceso ha desaparecido
+    de verdad.
 
-    Primero se le pide que se apague por su propio puerto local y solo se recurre
-    a taskkill si no obedece. El motivo no es cortesía: mientras el jugador está
-    en ATS, el servicio tiene instalado un hook de teclado de bajo nivel
-    (WH_KEYBOARD_LL). Matarlo con /F deja ese hook huérfano en la cadena de
-    Windows hasta que el sistema lo purga por timeout, y durante ese rato cada
-    tecla del equipo se queda esperando a un proceso que ya no existe. Con
-    /apagar el servicio retira su propio hook, devuelve el volumen de la
-    multimedia a su sitio y sale solo.
+    ORIGEN DEL WinError 32
+    --------------------------------------------------------------------------
+    Antes esto era un simple `taskkill /F /IM ...` seguido inmediatamente de
+    shutil.copy2(). Dos problemas encadenados:
+
+      1. taskkill /F devuelve en cuanto Windows ACEPTA la petición de matar el
+         proceso, no cuando el proceso ha muerto. Windows mantiene la imagen del
+         .exe mapeada (el "section object") hasta que se libera el último hilo,
+         y mientras tanto el archivo sigue bloqueado.
+      2. Nadie comprobaba el resultado: si taskkill fallaba (el servicio arrancó
+         en otra sesión, o estaba a medias de arrancar), la instalación seguía
+         adelante igualmente y reventaba en el copy2.
+
+    Resultado: "[WinError 32] El proceso no tiene acceso al archivo porque está
+    siendo utilizado por otro proceso" al copiar mmats_audio_inmersivo.exe.
+
+    Ahora se hace en tres pasos, del más limpio al más bruto, y siempre
+    esperando confirmación:
+      1. /apagar por HTTP: el servicio restaura el volumen, retira el hook de
+         teclado, suelta COM, cierra el socket y sale solo. Es la única vía que
+         además deja limpio el directorio temporal de PyInstaller.
+      2. TerminateProcess sobre los PID que realmente son el servicio.
+      3. Espera activa hasta que el PID desaparece.
+    """
+    decir = log or (lambda m, l='INFO': None)
+    pids = pids_de_imagen(AUDIO_HELPER_EXE)
+    if not pids:
+        return True, "no estaba en ejecución"
+
+    # 1. Apagado ordenado.
+    try:
+        req = urllib.request.Request(f"http://127.0.0.1:{puerto_servicio_audio()}/apagar",
+                                     method="POST", data=b"")
+        with urllib.request.urlopen(req, timeout=3) as r:
+            r.read()
+        if esperar_a_que_mueran(pids, 8.0):
+            decir("  [OK] Servicio de audio detenido de forma ordenada.")
+            return True, "apagado ordenado"
+    except (urllib.error.URLError, OSError, ValueError):
+        pass    # versión antigua sin /apagar, o ya no responde: seguimos
+
+    # 2. Terminación forzada, solo de nuestros PID.
+    restantes = [p for p in pids if proceso_vivo(p)]
+    for pid in restantes:
+        terminar_proceso(pid)
+
+    # 3. Confirmar.
+    if esperar_a_que_mueran(restantes, 10.0):
+        decir("  [OK] Servicio de audio detenido (cierre forzado).")
+        return True, "terminado a la fuerza"
+
+    vivos = [p for p in restantes if proceso_vivo(p)]
+    decir(f"  [WARN] El servicio de audio sigue vivo (PID {vivos}).", "WARN")
+    return False, f"no se pudo detener: PID {vivos}"
+
+
+def puerto_servicio_audio():
+    """
+    Puerto en el que escucha el servicio. El usuario puede haberlo cambiado en
+    %APPDATA%\\MULTIMEDIA ATS SANTI\\audio_inmersivo.json; si damos por hecho el
+    puerto por defecto, el apagado ordenado falla en silencio y acabamos
+    matando el proceso a la fuerza sin necesidad.
     """
     try:
-        import urllib.request
-        req = urllib.request.Request(f"http://127.0.0.1:{AUDIO_HELPER_PORT}/apagar",
-                                     data=b"", method="POST")
-        with urllib.request.urlopen(req, timeout=3):
-            pass
-        # Darle un momento para soltar el hook y cerrar el puerto.
-        for _ in range(20):
-            time.sleep(0.25)
-            if not _audio_helper_vivo():
-                return
-    except Exception:
+        base = os.environ.get("APPDATA") or os.path.expanduser("~")
+        ruta = os.path.join(base, APP_NAME, "audio_inmersivo.json")
+        with open(ruta, "r", encoding="utf-8") as f:
+            valor = int(json.load(f).get("port", AUDIO_HELPER_PORT))
+        return valor if 1024 <= valor <= 65535 else AUDIO_HELPER_PORT
+    except (OSError, ValueError, TypeError):
+        return AUDIO_HELPER_PORT
+
+
+# ==============================================================================
+# PROCESOS Y ARCHIVOS BLOQUEADOS (API de Windows, sin lanzar cmd.exe)
+# ==============================================================================
+
+_kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+TH32CS_SNAPPROCESS = 0x00000002
+INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+PROCESS_TERMINATE = 0x0001
+PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+SYNCHRONIZE = 0x00100000
+WAIT_TIMEOUT = 0x102
+GENERIC_WRITE = 0x40000000
+OPEN_EXISTING = 3
+MOVEFILE_DELAY_UNTIL_REBOOT = 0x4
+_ULONG_PTR = ctypes.c_ulonglong if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_ulong
+
+
+class _PROCESSENTRY32W(ctypes.Structure):
+    _fields_ = [
+        ("dwSize", wintypes.DWORD),
+        ("cntUsage", wintypes.DWORD),
+        ("th32ProcessID", wintypes.DWORD),
+        ("th32DefaultHeapID", _ULONG_PTR),
+        ("th32ModuleID", wintypes.DWORD),
+        ("cntThreads", wintypes.DWORD),
+        ("th32ParentProcessID", wintypes.DWORD),
+        ("pcPriClassBase", ctypes.c_long),
+        ("dwFlags", wintypes.DWORD),
+        ("szExeFile", ctypes.c_wchar * 260),
+    ]
+
+
+_kernel32.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+_kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+_kernel32.Process32FirstW.argtypes = [wintypes.HANDLE, ctypes.POINTER(_PROCESSENTRY32W)]
+_kernel32.Process32FirstW.restype = wintypes.BOOL
+_kernel32.Process32NextW.argtypes = [wintypes.HANDLE, ctypes.POINTER(_PROCESSENTRY32W)]
+_kernel32.Process32NextW.restype = wintypes.BOOL
+_kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+_kernel32.OpenProcess.restype = wintypes.HANDLE
+_kernel32.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
+_kernel32.TerminateProcess.restype = wintypes.BOOL
+_kernel32.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+_kernel32.WaitForSingleObject.restype = wintypes.DWORD
+_kernel32.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                                  ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD,
+                                  wintypes.HANDLE]
+_kernel32.CreateFileW.restype = wintypes.HANDLE
+_kernel32.MoveFileExW.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD]
+_kernel32.MoveFileExW.restype = wintypes.BOOL
+_kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+_kernel32.CloseHandle.restype = wintypes.BOOL
+
+
+def pids_de_imagen(nombre_exe):
+    """PIDs cuyo ejecutable se llama así. Solo lee la lista, no toca nada."""
+    nombre = nombre_exe.lower()
+    salida = []
+    snap = _kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+    if snap == INVALID_HANDLE_VALUE:
+        return salida
+    try:
+        e = _PROCESSENTRY32W()
+        e.dwSize = ctypes.sizeof(_PROCESSENTRY32W)
+        ok = _kernel32.Process32FirstW(snap, ctypes.byref(e))
+        while ok:
+            if e.szExeFile.lower() == nombre:
+                salida.append(e.th32ProcessID)
+            ok = _kernel32.Process32NextW(snap, ctypes.byref(e))
+    finally:
+        _kernel32.CloseHandle(snap)
+    return salida
+
+
+def proceso_vivo(pid):
+    h = _kernel32.OpenProcess(SYNCHRONIZE, False, pid)
+    if not h:
+        return False
+    try:
+        return _kernel32.WaitForSingleObject(h, 0) == WAIT_TIMEOUT
+    finally:
+        _kernel32.CloseHandle(h)
+
+
+def terminar_proceso(pid):
+    h = _kernel32.OpenProcess(PROCESS_TERMINATE, False, pid)
+    if not h:
+        return False
+    try:
+        return bool(_kernel32.TerminateProcess(h, 0))
+    finally:
+        _kernel32.CloseHandle(h)
+
+
+def esperar_a_que_mueran(pids, segundos):
+    fin = time.monotonic() + segundos
+    while time.monotonic() < fin:
+        if not any(proceso_vivo(p) for p in pids):
+            return True
+        time.sleep(0.15)
+    return not any(proceso_vivo(p) for p in pids)
+
+
+def archivo_libre(ruta):
+    """
+    True si NADIE tiene el archivo abierto. Se abre con dwShareMode=0: si otro
+    proceso lo tiene mapeado (un .exe en marcha, una DLL cargada por el juego),
+    CreateFileW falla y lo sabemos ANTES de intentar la copia.
+    """
+    if not os.path.exists(ruta):
+        return True
+    h = _kernel32.CreateFileW(ruta, GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, None)
+    if h == INVALID_HANDLE_VALUE:
+        return False
+    _kernel32.CloseHandle(h)
+    return True
+
+
+def esperar_archivo_libre(ruta, segundos=10.0):
+    fin = time.monotonic() + segundos
+    while time.monotonic() < fin:
+        if archivo_libre(ruta):
+            return True
+        time.sleep(0.2)
+    return archivo_libre(ruta)
+
+
+def copiar_reemplazando(origen, destino, log=None):
+    """
+    Copia sobrescribiendo, aunque el destino esté bloqueado por un proceso que
+    no ha terminado de morir.
+
+    Truco clave de NTFS: un ejecutable o una DLL en uso NO se puede borrar ni
+    sobrescribir, pero SÍ se puede renombrar. Así que si la copia directa choca
+    con un WinError 32, se aparta el archivo bloqueado con otro nombre, se
+    escribe el nuevo en su sitio y se intenta limpiar el apartado. Si tampoco se
+    deja borrar, se marca para que Windows lo elimine en el próximo arranque y
+    la instalación termina bien igualmente.
+    """
+    decir = log or (lambda m, l='INFO': None)
+    if os.path.exists(destino):
+        esperar_archivo_libre(destino, 8.0)
+    try:
+        shutil.copy2(origen, destino)
+        return True, None
+    except OSError as e:
+        if getattr(e, "winerror", None) not in (5, 32) or not os.path.exists(destino):
+            raise
+
+    apartado = f"{destino}.bak_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    os.rename(destino, apartado)
+    decir(f"  [INFO] {os.path.basename(destino)} estaba en uso: se aparta como "
+          f"{os.path.basename(apartado)} y se instala el nuevo.")
+    try:
+        shutil.copy2(origen, destino)
+    except OSError:
+        os.rename(apartado, destino)    # deshacer: mejor dejarlo como estaba
+        raise
+
+    if not borrar_o_programar_borrado(apartado):
+        decir(f"  [WARN] {os.path.basename(apartado)} sigue en uso; se borrará "
+              f"al reiniciar Windows o en la próxima instalación.", "WARN")
+    return True, apartado
+
+
+def borrar_o_programar_borrado(ruta):
+    try:
+        os.remove(ruta)
+        return True
+    except OSError:
         pass
     try:
-        subprocess.run(f'taskkill /F /IM "{AUDIO_HELPER_EXE}" /T',
-                       shell=True, capture_output=True, timeout=15)
-    except Exception:
-        pass
-
-
-def _audio_helper_vivo():
-    """True si el proceso del servicio sigue en la lista de tareas."""
-    try:
-        salida = subprocess.check_output(
-            f'tasklist /FI "IMAGENAME eq {AUDIO_HELPER_EXE}" /NH',
-            shell=True, text=True, timeout=10)
-        return AUDIO_HELPER_EXE.lower() in salida.lower()
+        # Última red: Windows lo borra en el próximo arranque (necesita permisos
+        # de administrador; si no los hay, lo recogerá limpiar_restos()).
+        return bool(_kernel32.MoveFileExW(ruta, None, MOVEFILE_DELAY_UNTIL_REBOOT))
     except Exception:
         return False
+
+
+def limpiar_restos(directorio, log=None):
+    """Borra los .bak_* que quedaron de instalaciones anteriores y ya están libres."""
+    decir = log or (lambda m, l='INFO': None)
+    borrados = 0
+    try:
+        nombres = os.listdir(directorio)
+    except OSError:
+        return 0
+    for nombre in nombres:
+        if ".bak_" not in nombre:
+            continue
+        base = nombre.split(".bak_")[0]
+        if base not in ("dxgi.dll", "WebView2Loader.dll", AUDIO_HELPER_EXE):
+            continue        # no es nuestro, no se toca
+        ruta = os.path.join(directorio, nombre)
+        if os.path.isfile(ruta) and archivo_libre(ruta):
+            try:
+                os.remove(ruta)
+                borrados += 1
+            except OSError:
+                pass
+    if borrados:
+        decir(f"  [OK] {borrados} archivo(s) apartados de instalaciones previas eliminados.")
+    return borrados
+
+
+def limpiar_menu_obsoleto(target_menu_dir, log=None):
+    """
+    Quita de MENU_EXTRAIDO, ya instalado, lo que este instalador ya no despliega.
+
+    Solo se borran nombres concretos y conocidos (la subcarpeta BACKUP y las
+    notas .txt del desarrollo). Nunca se hace una limpieza "por diferencia":
+    si el usuario ha dejado un archivo suyo ahí, se respeta.
+    """
+    decir = log or (lambda m, l='INFO': None)
+    quitados = 0
+    for d in MENU_DIRS_EXCLUIDOS:
+        ruta = os.path.join(target_menu_dir, d)
+        if os.path.isdir(ruta):
+            try:
+                shutil.rmtree(ruta)
+                quitados += 1
+            except OSError:
+                pass
+    for nombre in MENU_ARCHIVOS_EXCLUIDOS:
+        for candidato in (nombre, nombre.lower()):
+            ruta = os.path.join(target_menu_dir, candidato)
+            if os.path.isfile(ruta):
+                try:
+                    os.remove(ruta)
+                    quitados += 1
+                except OSError:
+                    pass
+                break
+    if quitados:
+        decir(f"  [OK] {quitados} resto(s) obsoleto(s) de versiones anteriores eliminados de MENU_EXTRAIDO.")
+    return quitados
+
+
+def podar_backups(directorio, conservar=BACKUPS_A_CONSERVAR, proteger=None, log=None):
+    """
+    Deja solo las N copias de seguridad más recientes. Cada instalación creaba
+    una carpeta nueva y ninguna se borraba: en la carpeta del juego se acumulan
+    decenas de copias idénticas de dxgi.dll (2 MB cada una).
+    """
+    decir = log or (lambda m, l='INFO': None)
+    try:
+        carpetas = sorted(
+            d for d in os.listdir(directorio)
+            if d.startswith("BACKUP_MULTIMEDIAATS_")
+            and os.path.isdir(os.path.join(directorio, d))
+        )
+    except OSError:
+        return 0
+    protegida = os.path.basename(proteger) if proteger else None
+    sobrantes = [d for d in carpetas[:-conservar] if d != protegida] if len(carpetas) > conservar else []
+    liberado = 0
+    for d in sobrantes:
+        ruta = os.path.join(directorio, d)
+        try:
+            liberado += sum(os.path.getsize(os.path.join(r, f))
+                            for r, _s, fs in os.walk(ruta) for f in fs)
+            shutil.rmtree(ruta)
+        except OSError:
+            liberado = max(0, liberado)
+    if sobrantes:
+        decir(f"  [OK] {len(sobrantes)} copias de seguridad antiguas eliminadas "
+              f"({liberado / (1024 * 1024):.0f} MB liberados). Se conservan las "
+              f"{conservar} más recientes.")
+    return len(sobrantes)
 
 
 def set_audio_helper_autostart(exe_path, enable=True):
@@ -144,7 +470,14 @@ def set_audio_helper_autostart(exe_path, enable=True):
 
 
 def launch_audio_helper(exe_path):
-    """Arranca el servicio ya mismo para que el usuario no tenga que reiniciar."""
+    """
+    Arranca el servicio ya mismo para que el usuario no tenga que reiniciar.
+
+    DETACHED_PROCESS es imprescindible: sin él, el servicio sería hijo del
+    instalador y arrastraría su consola. No se guarda la referencia al Popen a
+    propósito: al salir de la función se libera el handle del hijo, que ya vive
+    por su cuenta.
+    """
     try:
         flags = 0x00000008 | 0x08000000  # DETACHED_PROCESS | CREATE_NO_WINDOW
         subprocess.Popen([exe_path], creationflags=flags, close_fds=True,
@@ -181,12 +514,14 @@ def check_dll_x64(filepath):
         return False, str(e)
 
 def is_ats_running():
-    """Comprueba si el proceso del juego amtrucks.exe está activo."""
-    try:
-        output = subprocess.check_output('tasklist /FI "IMAGENAME eq amtrucks.exe" /NH', shell=True, text=True)
-        return "amtrucks.exe" in output.lower()
-    except Exception:
-        return False
+    """
+    Comprueba si el proceso del juego amtrucks.exe está activo.
+
+    Antes se lanzaba `tasklist` con shell=True: eso crea un cmd.exe y un
+    tasklist.exe (~150 ms y un parpadeo de consola) cada vez que se llama. Ahora
+    se pregunta directamente a la API de Windows.
+    """
+    return bool(pids_de_imagen(GAME_EXE))
 
 def parse_vdf_library_folders(vdf_path):
     """Parsea el archivo libraryfolders.vdf de Steam para encontrar rutas de librerías."""
@@ -335,7 +670,7 @@ class ModInstallerEngine:
             return False, err_msg
 
         # 2. Validar archivos fuente incluidos
-        self.log("[1/6] Verificando integridad de los archivos fuente empaquetados...")
+        self.log("[1/8] Verificando integridad de los archivos fuente empaquetados...")
         if not os.path.isfile(sources["dxgi"]):
             err_msg = f"Archivo requerido no encontrado: {sources['dxgi']}"
             self.log(f"[ERROR] {err_msg}", "ERROR")
@@ -365,6 +700,21 @@ class ModInstallerEngine:
 
         os.makedirs(target_bin_dir, exist_ok=True)
 
+        # 3b. Detener el servicio de audio ANTES de tocar nada.
+        # Es lo primero que hay que hacer: mientras corre, su .exe está mapeado
+        # por Windows y cualquier intento de sobrescribirlo da WinError 32. Y al
+        # detenerlo también deja de tocar el volumen del WebView2.
+        self.set_progress(22, "Deteniendo el servicio de Audio Inmersivo 3D...")
+        self.log("[2/8] Deteniendo el servicio de audio si estaba en marcha...")
+        ok_stop, detalle_stop = stop_audio_helper(self.log)
+        if not ok_stop:
+            self.log(f"  [WARN] {detalle_stop}. Se instalará apartando el archivo en uso.", "WARN")
+        else:
+            self.log(f"  [OK] Servicio de audio: {detalle_stop}.")
+
+        # Restos de instalaciones anteriores que quedaron bloqueados en su día.
+        limpiar_restos(target_bin_dir, self.log)
+
         # 4. Creación de Backup previo
         self.set_progress(30, "Creando copia de seguridad...")
         backup_folder_name = f"BACKUP_MULTIMEDIAATS_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -372,7 +722,7 @@ class ModInstallerEngine:
         
         backed_up_items = []
         if create_backup:
-            self.log(f"[2/6] Creando copia de seguridad en: {backup_folder_name}")
+            self.log(f"[3/8] Creando copia de seguridad en: {backup_folder_name}")
             target_dxgi = os.path.join(target_bin_dir, "dxgi.dll")
             target_webview = os.path.join(target_bin_dir, "WebView2Loader.dll")
             target_menu = os.path.join(target_bin_dir, "MENU_EXTRAIDO")
@@ -405,14 +755,18 @@ class ModInstallerEngine:
                 except Exception:
                     pass
 
+        # 4b. Podar copias de seguridad antiguas: sin esto la carpeta del juego
+        # engorda unos 3 MB por instalación y nunca se limpia sola.
+        podar_backups(target_bin_dir, proteger=backup_dir, log=self.log)
+
         # 5. Despliegue de DLLs
         self.set_progress(50, "Copiando librerías DLL...")
-        self.log("[3/6] Desplegando librerías dinámicas DirectX 11 y WebView2...")
+        self.log("[4/8] Desplegando librerías dinámicas DirectX 11 y WebView2...")
         installed_records = []
 
         # Copiar dxgi.dll
         dest_dxgi = os.path.join(target_bin_dir, "dxgi.dll")
-        shutil.copy2(sources["dxgi"], dest_dxgi)
+        copiar_reemplazando(sources["dxgi"], dest_dxgi, self.log)
         dxgi_hash = calculate_sha256(dest_dxgi)
         installed_records.append({
             "relative_path": "dxgi.dll",
@@ -425,7 +779,7 @@ class ModInstallerEngine:
 
         # Copiar WebView2Loader.dll
         dest_webview = os.path.join(target_bin_dir, "WebView2Loader.dll")
-        shutil.copy2(sources["webview"], dest_webview)
+        copiar_reemplazando(sources["webview"], dest_webview, self.log)
         wv_hash = calculate_sha256(dest_webview)
         installed_records.append({
             "relative_path": "WebView2Loader.dll",
@@ -438,17 +792,28 @@ class ModInstallerEngine:
 
         # 6. Despliegue de MENU_EXTRAIDO y recursos web
         self.set_progress(70, "Desplegando archivos de interfaz HTML/CSS/JS...")
-        self.log("[4/6] Desplegando contenido completo de MENU_EXTRAIDO...")
+        self.log("[5/8] Desplegando contenido completo de MENU_EXTRAIDO...")
         
         target_menu_dir = os.path.join(target_bin_dir, "MENU_EXTRAIDO")
         os.makedirs(target_menu_dir, exist_ok=True)
+        # Instalaciones anteriores dejaron ahí la subcarpeta BACKUP y las notas
+        # de desarrollo. Como el instalador nunca borraba lo que dejaba de
+        # enviar, esos restos se quedaban para siempre en la carpeta del juego.
+        limpiar_menu_obsoleto(target_menu_dir, self.log)
 
         for root, dirs, files in os.walk(sources["menu_dir"]):
+            # No desplegar en la carpeta del juego lo que no forma parte del mod:
+            # MENU_EXTRAIDO/BACKUP son copias viejas de los mismos HTML/CSS/JS
+            # (226 KB duplicados y desactualizados) y los .txt son notas de
+            # desarrollo. Ninguno lo carga el WebView.
+            dirs[:] = [d for d in dirs if d.upper() not in MENU_DIRS_EXCLUIDOS]
             rel_dir = os.path.relpath(root, sources["menu_dir"])
             curr_target_dir = target_menu_dir if rel_dir == "." else os.path.join(target_menu_dir, rel_dir)
             os.makedirs(curr_target_dir, exist_ok=True)
 
             for file in files:
+                if file.upper() in MENU_ARCHIVOS_EXCLUIDOS:
+                    continue
                 src_file_path = os.path.join(root, file)
                 dst_file_path = os.path.join(curr_target_dir, file)
                 shutil.copy2(src_file_path, dst_file_path)
@@ -465,14 +830,15 @@ class ModInstallerEngine:
 
         # 6b. Servicio de Audio Inmersivo 3D por cámara
         self.set_progress(80, "Instalando el servicio de Audio Inmersivo 3D...")
-        self.log("[5/7] Desplegando el servicio de Audio Inmersivo 3D por cámara...")
+        self.log("[6/8] Desplegando el servicio de Audio Inmersivo 3D por cámara...")
 
         if os.path.isfile(sources["audio_helper"]):
-            # Hay que pararlo antes: si está corriendo, el .exe está bloqueado.
-            stop_audio_helper()
+            # Ya se detuvo en el paso [2/8]; aquí solo nos aseguramos de que no
+            # ha vuelto a arrancar (autostart, doble clic del usuario...).
+            stop_audio_helper(self.log)
             dest_audio = os.path.join(target_bin_dir, AUDIO_HELPER_EXE)
             try:
-                shutil.copy2(sources["audio_helper"], dest_audio)
+                copiar_reemplazando(sources["audio_helper"], dest_audio, self.log)
                 audio_hash = calculate_sha256(dest_audio)
                 installed_records.append({
                     "relative_path": AUDIO_HELPER_EXE,
@@ -502,7 +868,7 @@ class ModInstallerEngine:
 
         # 7. Generación de Manifiesto y Registro de Instalación
         self.set_progress(88, "Generando registros de instalación...")
-        self.log("[6/7] Creando manifiesto JSON y log oficial...")
+        self.log("[7/8] Creando manifiesto JSON y log oficial...")
 
         manifest_data = {
             "mod_name": APP_NAME,
@@ -537,7 +903,7 @@ class ModInstallerEngine:
 
         # 8. Verificación de Integridad Final
         self.set_progress(95, "Verificando integridad final...")
-        self.log("[7/7] Comprobando existencia y accesibilidad de todos los archivos...")
+        self.log("[8/8] Comprobando existencia y accesibilidad de todos los archivos...")
         for rec in installed_records:
             if not os.path.isfile(rec["full_path"]):
                 return False, f"Fallo al verificar el archivo instalado: {rec['full_path']}"
@@ -588,7 +954,9 @@ class ModInstallerEngine:
         # Parar el servicio de audio y quitar su arranque automático antes de
         # borrar nada: mientras corre, su .exe está bloqueado por Windows.
         self.set_progress(30, "Deteniendo el servicio de Audio Inmersivo 3D...")
-        stop_audio_helper()
+        ok_stop, detalle_stop = stop_audio_helper(self.log)
+        if not ok_stop:
+            self.log(f"  [WARN] {detalle_stop}. Su .exe podría no poder borrarse todavía.", "WARN")
         ok_reg, err_reg = set_audio_helper_autostart(None, False)
         if ok_reg:
             self.log("  [OK] Arranque automático del servicio de audio eliminado.")
@@ -603,8 +971,17 @@ class ModInstallerEngine:
                     os.remove(fpath)
                     self.log(f"  [ELIMINADO] {os.path.basename(fpath)}")
                     removed_count += 1
-                except Exception as e:
-                    self.log(f"  [ERROR] No se pudo eliminar {fpath}: {e}", "ERROR")
+                except OSError as e:
+                    # Si algo lo tiene abierto, apartarlo y programar su borrado
+                    # en vez de dejar la desinstalación a medias.
+                    if borrar_o_programar_borrado(fpath):
+                        self.log(f"  [ELIMINADO] {os.path.basename(fpath)}")
+                        removed_count += 1
+                    else:
+                        self.log(f"  [ERROR] No se pudo eliminar {fpath}: {e}", "ERROR")
+
+        # Restos apartados por instalaciones anteriores.
+        limpiar_restos(target_bin_dir, self.log)
 
         # Eliminar carpeta MENU_EXTRAIDO
         target_menu = os.path.join(target_bin_dir, "MENU_EXTRAIDO")
@@ -692,9 +1069,39 @@ class ModernInstallerGUI:
         self.backup_var = tk.BooleanVar(value=True)
         self.status_var = tk.StringVar(value="Listo para instalar")
         self.is_working = False
+        self._cerrando = False
+        self._hilo_trabajo = None
 
         self._build_ui()
+        # Sin esto, cerrar la ventana con la X mientras un hilo seguía escribiendo
+        # en el log dejaba el proceso del instalador vivo en segundo plano.
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.auto_detect_ats()
+
+    def on_close(self):
+        """Cierre ordenado de la ventana."""
+        if self.is_working:
+            if not messagebox.askyesno(
+                    "Operación en curso",
+                    "Hay una instalación o desinstalación en marcha.\n\n"
+                    "Cerrar ahora puede dejar los archivos a medias.\n"
+                    "¿Cerrar de todos modos?"):
+                return
+        self._cerrando = True
+        # Cancelar los after() pendientes: si uno se dispara con la ventana ya
+        # destruida, Tk lanza una excepción y el proceso puede quedar colgado.
+        try:
+            for pendiente in self.root.tk.call("after", "info"):
+                try:
+                    self.root.after_cancel(pendiente)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        try:
+            self.root.quit()
+        finally:
+            self.root.destroy()
 
     def _build_ui(self):
         # 1. Cabecera con banner y estilo moderno
@@ -968,7 +1375,11 @@ class ModernInstallerGUI:
         lbl_footer_right.pack(side="right", padx=20, pady=8)
 
     def gui_log(self, message, level="INFO"):
+        if self._cerrando:
+            return
         def _append():
+            if self._cerrando:
+                return
             tag = "INFO"
             if "[OK]" in message or "EXITOSAMENTE" in message or "CORRECTAMENTE" in message:
                 tag = "OK"
@@ -984,7 +1395,11 @@ class ModernInstallerGUI:
         self.root.after(0, _append)
 
     def gui_progress(self, percent, status_text=""):
+        if self._cerrando:
+            return
         def _update():
+            if self._cerrando:
+                return
             self.progress_bar["value"] = percent
             if status_text:
                 self.status_var.set(status_text)
@@ -1026,10 +1441,29 @@ class ModernInstallerGUI:
             messagebox.showwarning("Aviso", "La carpeta seleccionada no existe actualmente.")
 
     def set_ui_busy(self, busy=True):
+        """
+        Se llama desde los hilos de trabajo. Tkinter NO es thread-safe: tocar un
+        widget fuera del hilo de la GUI cuelga o revienta la ventana de forma
+        aleatoria (y era una de las formas de que el instalador se quedara
+        colgado al terminar). Todo pasa por root.after().
+        """
         self.is_working = busy
-        state = "disabled" if busy else "normal"
-        self.btn_install.config(state=state)
-        self.btn_uninstall.config(state=state)
+
+        def _aplicar():
+            if self._cerrando:
+                return
+            state = "disabled" if busy else "normal"
+            self.btn_install.config(state=state)
+            self.btn_uninstall.config(state=state)
+        self.root.after(0, _aplicar)
+
+    def _aviso(self, tipo, titulo, mensaje):
+        """messagebox desde un hilo de trabajo, servido en el hilo de la GUI."""
+        def _mostrar():
+            if self._cerrando:
+                return
+            {"info": messagebox.showinfo, "error": messagebox.showerror}[tipo](titulo, mensaje)
+        self.root.after(0, _mostrar)
 
     def start_install_thread(self):
         if self.is_working:
@@ -1048,12 +1482,22 @@ class ModernInstallerGUI:
         threading.Thread(target=self._run_install, args=(target_bin,), daemon=True).start()
 
     def _run_install(self, target_bin):
-        success, msg = self.engine.install(target_bin, create_backup=self.backup_var.get())
-        self.set_ui_busy(False)
+        try:
+            success, msg = self.engine.install(target_bin, create_backup=self.backup_var.get())
+        except Exception as e:
+            # Sin esto, una excepción aquí mataba el hilo en silencio: la GUI se
+            # quedaba con los botones deshabilitados y sin decir nada.
+            success, msg = False, f"{type(e).__name__}: {e}"
+            self.gui_log(f"[ERROR] Excepción no controlada durante la instalación: {msg}", "ERROR")
+        finally:
+            self.set_ui_busy(False)
         if success:
-            messagebox.showinfo("Instalación Exitosa", f"¡{APP_NAME} ha sido instalado correctamente en:\n{target_bin}\n\nYa puedes abrir American Truck Simulator.")
+            self._aviso("info", "Instalación Exitosa",
+                        f"¡{APP_NAME} ha sido instalado correctamente en:\n{target_bin}\n\n"
+                        f"Ya puedes abrir American Truck Simulator.")
         else:
-            messagebox.showerror("Error de Instalación", f"No se pudo completar la instalación:\n{msg}")
+            self._aviso("error", "Error de Instalación",
+                        f"No se pudo completar la instalación:\n{msg}")
 
     def start_uninstall_thread(self):
         if self.is_working:
@@ -1071,12 +1515,18 @@ class ModernInstallerGUI:
         threading.Thread(target=self._run_uninstall, args=(target_bin,), daemon=True).start()
 
     def _run_uninstall(self, target_bin):
-        success, msg = self.engine.uninstall(target_bin, restore_backup=True)
-        self.set_ui_busy(False)
+        try:
+            success, msg = self.engine.uninstall(target_bin, restore_backup=True)
+        except Exception as e:
+            success, msg = False, f"{type(e).__name__}: {e}"
+            self.gui_log(f"[ERROR] Excepción no controlada durante la desinstalación: {msg}", "ERROR")
+        finally:
+            self.set_ui_busy(False)
         if success:
-            messagebox.showinfo("Desinstalación Exitosa", f"{APP_NAME} ha sido desinstalado correctamente.")
+            self._aviso("info", "Desinstalación Exitosa",
+                        f"{APP_NAME} ha sido desinstalado correctamente.")
         else:
-            messagebox.showerror("Error", f"Error durante la desinstalación:\n{msg}")
+            self._aviso("error", "Error", f"Error durante la desinstalación:\n{msg}")
 
 
 # ==============================================================================
