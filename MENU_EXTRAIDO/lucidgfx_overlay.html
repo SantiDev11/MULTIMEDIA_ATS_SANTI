@@ -4,7 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MULTIMEDIA ATS SANTI</title>
-<link rel="stylesheet" href="overlay_styles.css">
+<!-- Sin hojas de estilo externas a proposito. dxgi.dll solo extrae los CINCO
+     HTML de .rdata a %LOCALAPPDATA%\LucidGFX\assets y mapea ahi el host virtual
+     lucidgfx.local: ningun .css ni .js viaja dentro de la DLL. El
+     overlay_styles.css que habia enlazado aqui resolvia contra una copia de
+     agosto del mod original que sigue tirada en esa carpeta, asi que pisaba con
+     estilos viejos el diseno de abajo. Todo el CSS de este panel esta en el
+     bloque <style> que sigue. -->
 <style>
 /* Reset global y diseño visual MULTIMEDIA ATS SANTI */
 :root {
@@ -344,6 +350,14 @@ input[type=range]:active::-webkit-slider-thumb { transform: scale(1.3); }
         <p class="sh">Dispositivos Reconocidos en Cabina</p>
         <div class="hash-cards" id="hash-list"></div>
 
+        <div class="sep"></div>
+
+        <p class="sh">Pantalla que se Pinta en Cabina</p>
+        <div class="row">
+          <span class="rlbl">Ocurrencia de la pantalla<br><span style="color:#64748b;font-size:10.5px;">D&eacute;jalo en <b>Auto</b>: cada pantalla ya trae su ocurrencia correcta. Solo t&oacute;calo si el contenido sale en la pantalla equivocada del cami&oacute;n; entonces prueba <b>1</b> y luego <b>2</b>. Con <b>Todas</b> se pinta en todas las que compartan textura (tambi&eacute;n el tac&oacute;metro).</span></span>
+          <div class="rctl"><div id="hit-btns" class="zoom-row" style="flex-wrap:wrap;justify-content:flex-end;"></div></div>
+        </div>
+
       </div>
     </div>
 
@@ -491,7 +505,8 @@ var state = {
   mmUrl: '',
   zoom: 200,
   mouse_color: '#FFFFFF',
-  rtHash: '6E445921D4FBB174'
+  rtHash: '6E445921D4FBB174',
+  hitIndex: 'auto'
 };
 
 var DEVICES = [
@@ -529,6 +544,7 @@ function mmStart() {
   }
   if (alertEl) alertEl.style.display = 'none';
   postMsg({action:'startMm', hash:state.rtHash});
+  hitSend();                 // 'startMm' repone el defecto del preset
   setMmRunning(true, 'lucidgfx_home.html');
 }
 
@@ -665,21 +681,82 @@ function mouseColorSet(c) {
 
 // Ocurrencia del render target que se pinta.
 //
-// Ya no se elige desde aqui, y a proposito. El juego dibuja varias pantallas de
-// la cabina (multimedia, tacometro, GPS del salpicadero...) sobre el MISMO
-// render target, porque el hash se calcula del tamano y del formato de la
-// textura y varias coinciden. Cada preset de la DLL trae su propia ocurrencia
-// correcta, asi que el overlay ya NO manda 'dbgHit': mandarlo imponia un unico
-// valor global a todas las pantallas y pisaba el defecto de cada una.
+// El juego dibuja varias pantallas de la cabina (multimedia, tacometro, GPS del
+// salpicadero...) sobre el MISMO render target: el hash se calcula del tamano y
+// del formato de la textura, y varias coinciden. La DLL cuenta las ocurrencias
+// dentro del frame y pinta solo la que coincide con este indice; con 0 pinta
+// TODAS, que es lo que hacia que el contenido saliera tambien en el tacometro.
 //
-// La ocurrencia de cada pantalla se fija en build_multimedia_ats_santi.py.
+// AUTO es el valor por defecto y NO manda nada: cada preset de la DLL ya trae su
+// propia ocurrencia, fijada en build_multimedia_ats_santi.py. Ese es justo el
+// motivo por el que este control se quito en su dia: mandaba 'dbgHit' siempre y
+// con eso imponia un unico valor global a las cuatro pantallas, pisando el
+// defecto correcto de cada una. Vuelve a estar, pero como anulacion manual: solo
+// se manda 'dbgHit' si el usuario elige un numero, y la eleccion se guarda.
+//
+// Ojo: 'startMm' y 'selectHash' reponen el defecto del preset, asi que cuando
+// hay anulacion manual hay que reenviarla despues de cada uno.
+var HIT_OPTS = ['auto', 1, 2, 3, 4, 0];
+
+function hitLoad() {
+  var v = 'auto';
+  try {
+    var raw = localStorage.getItem('mmats_hit_index');
+    if (raw !== null && raw !== 'auto') {
+      var n = parseInt(raw, 10);
+      if (n >= 0 && n <= 4) v = n;
+    }
+  } catch (e) {}
+  state.hitIndex = v;
+}
+
+function hitSend() {
+  if (state.hitIndex === 'auto') return;   // se respeta el defecto del preset
+  postMsg({action:'dbgHit', val: state.hitIndex});
+}
+
+function hitSet(v) {
+  state.hitIndex = v;
+  try { localStorage.setItem('mmats_hit_index', String(v)); } catch (e) {}
+  if (v !== 'auto') postMsg({action:'setSetting', key:'multimedia_hit_index', val: v});
+  hitSend();
+  hitRender();
+}
+
+function hitRender() {
+  var box = document.getElementById('hit-btns');
+  if (!box) return;
+  box.innerHTML = '';
+  HIT_OPTS.forEach(function(v) {
+    var b = document.createElement('button');
+    var ancho = (v === 'auto' || v === 0);
+    b.className = 'zoom-btn' + (ancho ? ' wide' : '') + (state.hitIndex === v ? ' on' : '');
+    b.textContent = (v === 'auto' ? 'Auto' : (v === 0 ? 'Todas' : String(v)));
+    b.title = (v === 'auto' ? 'Cada pantalla usa la ocurrencia que trae su preset (recomendado)' :
+               v === 0 ? 'Pinta todas las pantallas que compartan el render target' :
+                         'Pinta solo la ocurrencia ' + v);
+    b.addEventListener('mousedown', function(e) { e.stopPropagation(); hitSet(v); });
+    box.appendChild(b);
+  });
+}
 
 // Dispositivos y Tarjetas
+//
+// Elegir tarjeta NO arranca la multimedia: eso lo hace solo el boton INICIAR.
+// Con la multimedia parada la eleccion se queda guardada y no se manda nada al
+// lado nativo, porque la compuerta de render de dxgi.dll mira precisamente el
+// rtHash: mandar 'selectHash' con la multimedia parada abriria la compuerta y la
+// pantalla apareceria en la cabina sin que nadie la haya arrancado.
+//
+// Con la multimedia en marcha se manda 'selectHash' y no 'startMm': 'selectHash'
+// cambia la pantalla que se pinta sin volver a navegar, asi que si estabas en
+// Spotify o en YouTube no te devuelve a la home.
 function selectDevice(dev) {
   state.rtHash = dev.hash;
   try { localStorage.setItem('mmats_selected_hash', dev.hash); } catch(e) {}
   if (state.mmRunning) {
-    postMsg({action:'startMm', hash:dev.hash});
+    postMsg({action:'selectHash', hash:dev.hash});
+    hitSend();
   }
   updateSourceCards();
 }
@@ -893,8 +970,23 @@ if (window.chrome && window.chrome.webview) {
       if (typeof data.volLevel === 'number') volSet(data.volLevel);
       if (typeof data.mouseSens === 'number') sensSet(data.mouseSens);
       if (data.mouseColor) mouseColorSet(data.mouseColor);
-      setMmRunning(!!data.mmRunning, data.mmUrl || '');
+      // El getState de esta version de dxgi.dll NO trae mmRunning (se comprobo:
+      // la cadena no existe en el binario). Antes se hacia setMmRunning(!!undefined)
+      // en cada respuesta, asi que el panel se pintaba SIEMPRE como "Detenido"
+      // aunque la multimedia estuviera en marcha, y el boton INICIAR volvia a
+      // salir invitando a arrancarla otra vez. Solo se aplica si viene el campo.
+      if (typeof data.mmRunning !== 'undefined') {
+        setMmRunning(!!data.mmRunning, data.mmUrl || '');
+      }
       updateSourceCards();
+    }
+    // Confirmacion real del lado nativo: la DLL manda {"ev":"mmState","running":...}
+    // desde los manejadores de 'startMm' (0x1800e5884) y 'stopMm' (0x1800e59b3).
+    // Nadie lo escuchaba, asi que el panel iba por su cuenta de forma optimista.
+    // Escucharlo es lo que evita arrancar dos veces o quedarse con el boton
+    // equivocado si el arranque nativo no llega a completarse.
+    if (data.ev === 'mmState') {
+      setMmRunning(!!data.running, data.running ? 'lucidgfx_home.html' : '');
     }
   });
 }
@@ -925,6 +1017,8 @@ window.addEventListener('load', function() {
     var savedHash = localStorage.getItem('mmats_selected_hash');
     if (savedHash) state.rtHash = savedHash;
   } catch(e) {}
+  hitLoad();
+  hitRender();
   updateSourceCards();
   buildMouseColors();
   ensureUniversalLicenseActive();

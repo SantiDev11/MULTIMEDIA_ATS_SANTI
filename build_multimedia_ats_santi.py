@@ -4,7 +4,8 @@
 MULTIMEDIA ATS SANTI - Official Master Build Script
 ================================================================================
 1. Dual-Key XOR encryption e inyección de los 5 módulos HTML en .rdata.
-2. Desbloqueos de Renderizado D3D11 y Navegación con Mouse.
+2. Compuerta nativa de render (la multimedia no se pinta hasta que el usuario
+   pulsa INICIAR), desbloqueo de planes/navegación y licencia universal offline.
 3. Tecla Oficial de Navegación F8 (VK_F8 = 0x77 = 119).
 4. Activación permanente de Licencia Universal Offline (MMATS-SANTI-2026-UNIVERSAL).
 5. Roadworks Cursor: sustituye el HLSL del cursor F8 (bolinha) por la flecha con
@@ -17,6 +18,13 @@ MULTIMEDIA ATS SANTI - Official Master Build Script
    multimedia salia tambien en el cuadro de instrumentos (DIC).
 8. Orientación de las pantallas: fija las banderas de V-flip de cada preset
    para que no se pierdan en cada recompilación.
+9. Calidad: quita --disable-gpu de los argumentos del WebView2.
+10. Resolución de render del WebView2 (supermuestreo sobre el render target).
+11. Cierre del juego: REPONE la guarda original de DllMain. Los parches que se
+    saltaban destructores en DLL_PROCESS_DETACH no arreglaban nada (esa rama ya
+    estaba guardada) y dejaban el WndProc del juego colgando. Prohibido volver.
+12. Auditoría final: .text no puede cambiar en ningún byte que algún paso no
+    haya declarado. Aborta la compilación si aparece uno.
 ================================================================================
 """
 import pefile
@@ -37,6 +45,52 @@ image_base = pe.OPTIONAL_HEADER.ImageBase
 
 def va_to_offset(va):
     return pe.get_offset_from_rva(va - image_base)
+
+# ------------------------------------------------------------------------------
+# Escrituras verificadas sobre .text
+# ------------------------------------------------------------------------------
+# La DLL base de la que se parte (BACKUP_MULTIMEDIAATS_SEGURIDAD/dxgi.dll) NO es
+# el binario original del mod: arrastra parches de compilaciones anteriores
+# grabados dentro (por ejemplo en 0x1800c1bd5 hay seis NOP y en 0x1800c212d un
+# 'mov r9d, 1' que puso una version vieja de este script). Por eso ningun paso
+# puede dar por hecho lo que hay en un sitio: se comprueba antes de escribir y
+# se acepta explicitamente tanto la forma original como la ya parcheada.
+#
+# Todo lo que este script escribe en .text pasa por aqui, y REGISTRO_TEXT lleva
+# la cuenta para la auditoria final: al terminar se comparan base y resultado
+# byte a byte y no puede haber ni un solo cambio en .text fuera de esta lista.
+REGISTRO_TEXT = []
+
+def parchear(va, esperado, nuevo, etiqueta):
+    """Escribe `nuevo` en `va` solo si alli sigue estando `esperado`."""
+    return parchear_variantes(va, [esperado], nuevo, etiqueta)
+
+def parchear_variantes(va, aceptados, nuevo, etiqueta):
+    """
+    Igual que parchear() pero admitiendo varias formas de partida (la original
+    y las que dejaron compilaciones anteriores). Devuelve False si lo que hay
+    ya es exactamente lo que se queria escribir.
+    """
+    off = va_to_offset(va)
+    actual = bytes(dll[off:off + len(nuevo)])
+    REGISTRO_TEXT.append((off, len(nuevo), etiqueta, va))
+    if actual == nuevo:
+        return False
+    for esperado in aceptados:
+        if bytes(dll[off:off + len(esperado)]) == esperado:
+            dll[off:off + len(nuevo)] = nuevo
+            return True
+    raise SystemExit(
+        f' [ERROR] {etiqueta} en {va:#x}: la DLL base no trae ninguno de los\n'
+        f'         patrones esperados. Hay: {actual.hex()}\n'
+        f'         Se esperaba uno de: ' +
+        ', '.join(e.hex() for e in aceptados))
+
+def escribir_text(va, nuevo, etiqueta):
+    """Escritura en .text sin patron de partida, pero anotada para la auditoria."""
+    off = va_to_offset(va)
+    REGISTRO_TEXT.append((off, len(nuevo), etiqueta, va))
+    dll[off:off + len(nuevo)] = nuevo
 
 def encrypt_dual_key_xor(plain_data, key1, key2):
     klen1 = len(key1)
@@ -136,30 +190,86 @@ for i, (res_name, file_path) in enumerate(files_map):
 # ------------------------------------------------------------------------------
 # 2. Desbloqueo de Licencia Universal y Compuerta de Inicio de Multimedia
 # ------------------------------------------------------------------------------
-# Compuerta nativa D3D11: NO renderizar la pantalla en el camión hasta que el
-# usuario pulse INICIAR en el overlay (cuando [rdi + 0x1a0] != 0).
-# 0x1800c1bc7: cmp qword ptr [rdi + 0x1a0], 0; je 0x1800c22b5; nops
-off_render_gate = va_to_offset(0x1800c1bc7)
-dll[off_render_gate : off_render_gate + 20] = bytes.fromhex('4883bfa0010000000f84e0060000909090909090')
+# COMPUERTA NATIVA DE RENDER: nada se pinta en la cabina hasta que se pulsa INICIAR
+# ------------------------------------------------------------------------------
+# El original de este sitio era la comprobacion de LICENCIA, no de arranque:
+#
+#     0x1800c1bc7  call 0x180030410            ; &config
+#     0x1800c1bcc  movzx ecx, byte [rax+0x81]  ; config.modEn (licencia/entitlement)
+#     0x1800c1bd3  test cl, cl
+#     0x1800c1bd5  je   0x1800c22b5            ; sin licencia -> no pintar
+#
+# Una version anterior de este script puso seis NOP encima del `je` para saltarse
+# la licencia. El efecto colateral fue que la funcion de pintado se quedo SIN
+# ninguna condicion propia: en cuanto habia un render target reconocido, pintaba.
+# Eso, sumado a que el overlay mandaba 'startMm' solo con abrirse, es lo que hacia
+# que la multimedia apareciera en el camion sin que nadie pulsara INICIAR.
+#
+# La condicion correcta es el rtHash del renderizador, [rdi+0x1a0]. Es el estado
+# de arranque de verdad y se comprobo instruccion a instruccion en el binario:
+#
+#   * nace a 0            -> constructor del renderizador (0x1800c7945)
+#   * 'startMm'  lo pone  -> 0x1800e57df llama a SetRtHash(renderizador, hash)
+#   * 'selectHash' lo pone-> 0x1800e5a6c, mismo SetRtHash
+#   * 'stopMm'   lo borra -> 0x1800e5997 llama a SetRtHash(renderizador, 0)
+#
+# No hay ningun otro sitio en toda la DLL que escriba ese campo (los unicos que
+# quedan son los botones "limpiar" de la ventana ImGui, que tambien mandan 0), y
+# la lectura del .ini de multimedia_rt_hash NO lo toca. O sea: vale 0 mientras el
+# usuario no arranque la multimedia, y vuelve a 0 en cuanto la para.
+#
+# 0x1800c1bc7: cmp qword [rdi+0x1a0], 0 ; je 0x1800c22b5 ; 6 NOP
+_GATE_ORIGINAL = bytes.fromhex('e844e8f6ff0fb6888100000084c90f84da060000')
+_GATE_P3       = bytes.fromhex('e844e8f6ff0fb6888100000084c9909090909090')
+parchear_variantes(0x1800c1bc7, [_GATE_ORIGINAL, _GATE_P3],
+                   bytes.fromhex('4883bfa001000000' '0f84e0060000' '909090909090'),
+                   'compuerta de render de la multimedia')
 
-# 0x1800c2128: mov rax, [rdi + 0x1a0]; neg rax; sbb r9d, r9d (estado dinámico de mmRunning para getState)
-off_state_report = va_to_offset(0x1800c2128)
-dll[off_state_report : off_state_report + 13] = bytes.fromhex('488b87a001000048f7d84519c9')
+# DIAGNOSTICO [MM-DIAG]: se devuelve el valor de verdad de modEn
+# ------------------------------------------------------------------------------
+# Este sitio NO es getState (getState se atiende en 0x1800e6fa9); es el ultimo
+# argumento de la linea de log
+#
+#     [MM-DIAG] novo maxHit={} hitIdxAlvo={} hash=0x{:016X} pintaria={} modEn={}
+#
+# La misma version antigua que NOPeo la licencia dejo aqui un 'mov r9d, 1' para
+# que el log dijera siempre modEn=1, y una posterior lo cambio por un
+# 'neg rax / sbb r9d, r9d' que escribe -1. Las dos mienten. Se repone la forma
+# original -leer config.modEn- que ademas cabe exacta en los 13 bytes:
+#     call 0x180030410 ; movzx r9d, byte [rax+0x81]
+_DIAG_P3 = bytes.fromhex('e8e3e2f6ff' '41b901000000' '9090')
+_DIAG_P4 = bytes.fromhex('488b87a0010000' '48f7d8' '4519c9')
+parchear_variantes(0x1800c2128, [_DIAG_P3, _DIAG_P4],
+                   bytes.fromhex('e8e3e2f6ff' '440fb68881000000'),
+                   'modEn del log [MM-DIAG]')
 
 # Desbloqueos de planes / navegación web en WebView2 (YouTube, Spotify, etc.)
-off_feat = va_to_offset(0x1800ce420)
-dll[off_feat : off_feat + 3] = bytes([0xB0, 0x01, 0xC3])
+escribir_text(0x1800ce420, bytes([0xB0, 0x01, 0xC3]), 'plan/feature -> siempre disponible')
+escribir_text(0x1800cb252, bytes([0xBA, 0x00, 0x00, 0x00, 0x00]), 'cancelacion de navegacion')
+escribir_text(0x1800cb25a, bytes([0x90, 0x90]), 'llamada de bloqueo de navegacion')
 
-off_cancel = va_to_offset(0x1800cb24e)
-dll[off_cancel + 4 : off_cancel + 9] = bytes([0xBA, 0x00, 0x00, 0x00, 0x00])
-off_call = va_to_offset(0x1800cb25a)
-dll[off_call : off_call + 2] = bytes([0x90, 0x90])
-
+# LICENCIA UNIVERSAL OFFLINE
+# ------------------------------------------------------------------------------
+# config+0x81 NO es "multimedia encendida": es el flag de licencia/entitlement
+# del mod. Se comprobo en tres sitios del binario:
+#
+#   0x180030965  if (config.b81) reintento_licencia = 300000 ms  else 20000/8000
+#   0x180031a6d  if (config.b81 && sesion && sesion.ok1 && sesion.ok2) { ... }
+#   0x18002faf7  se pasa como argumento al aplicar la licencia
+#
+# y es el mismo byte que el log [MM-DIAG] imprime como modEn. La compilacion
+# anterior lo puso a 0 creyendo que apagaba la multimedia al inicio; lo que hacia
+# en realidad era dejar el mod en estado NO licenciado, con el reintento de
+# licencia disparandose cada 8-20 segundos. Vuelve a 1.
+#
+# Lo que apaga la multimedia al inicio es la compuerta de render de arriba, que
+# es estado de ejecucion y no se guarda en ningun sitio.
 lic_off = va_to_offset(0x1801f9290)
 dll[lic_off + 0x80] = 1   # Licencia activa permanente
-dll[lic_off + 0x81] = 0   # Multimedia apagada al inicio
+dll[lic_off + 0x81] = 1   # modEn: mod licenciado (NO es el interruptor de arranque)
 dll[lic_off + 0x31c] = 1  # Entitlements activos
-print(" [OK] Compuerta nativa D3D11 configurada (cero render hasta que el usuario pulse INICIAR)")
+print(" [OK] Compuerta de render: cero pintado hasta que el usuario pulse INICIAR")
+print(" [OK] Licencia universal offline activa (modEn = 1)")
 
 # ------------------------------------------------------------------------------
 # 3. Tecla Oficial de Navegación F8 (VK_F8 = 0x77 = 119)
@@ -241,14 +351,6 @@ def escribir_cadena(va, texto, etiqueta):
                          f'caben {cupo} en .rdata.')
     dll[ini:fin] = texto + bytes(fin - ini - len(texto))
     return cupo
-
-def parchear(va, esperado, nuevo, etiqueta):
-    """Escribe `nuevo` en `va` solo si alli sigue estando `esperado`."""
-    off = va_to_offset(va)
-    if bytes(dll[off:off + len(esperado)]) != esperado:
-        raise SystemExit(f' [ERROR] {etiqueta} en {va:#x}: la DLL base no trae el '
-                         f'patron esperado {esperado.hex()}.')
-    dll[off:off + len(nuevo)] = nuevo
 
 if len(PREFIJO) != 6:
     raise SystemExit(' [ERROR] El prefijo del aviso tiene que medir 6 bytes.')
@@ -337,6 +439,7 @@ def repuntar(va, largo, destino_antes, destino_ahora, etiqueta):
     """Cambia el objetivo de una lectura rip-relativa sin mover la instruccion."""
     off = va_to_offset(va)
     esperado = struct.pack('<i', destino_antes - (va + largo))
+    REGISTRO_TEXT.append((off + largo - 4, 4, etiqueta, va))
     if bytes(dll[off + largo - 4 : off + largo]) != esperado:
         raise SystemExit(f' [ERROR] {etiqueta} en {va:#x}: no apunta a '
                          f'{destino_antes:#x} como se esperaba.')
@@ -445,7 +548,7 @@ print(f' [..] Configurando Multimedia Compacta (Scania mod): '
 _off_f1_sc = va_to_offset(TABLA_PRESETS_VA + 0x36)
 if bytes(dll[_off_f1_sc - 3:_off_f1_sc]) != bytes.fromhex('c745ef'):
     raise SystemExit(' [ERROR] El primer float del preset scania no esta donde se esperaba.')
-dll[_off_f1_sc:_off_f1_sc + 4] = _f1
+escribir_text(TABLA_PRESETS_VA + 0x36, _f1, 'preset scania: primer float')
 
 _off_sc = va_to_offset(SCANIA_VA)
 _orig_sc = bytes(dll[_off_sc:_off_sc + 24])
@@ -475,7 +578,7 @@ _nuevo_sc = (
 )
 if len(_nuevo_sc) != 24:
     raise SystemExit(f' [ERROR] El bloque nuevo mide {len(_nuevo_sc)} bytes y tienen que ser 24.')
-dll[_off_sc:_off_sc + 24] = _nuevo_sc
+escribir_text(SCANIA_VA, _nuevo_sc, 'preset scania: bloque de 24 bytes')
 print(f' [OK] Multimedia Compacta: misma configuracion que el GPS Parabrisas (hit 1)')
 
 # NO se toca la comparacion del hit index de 0x1800c2256 (el `je`). Es codigo
@@ -507,12 +610,26 @@ print(f' [OK] Multimedia Compacta: misma configuracion que el GPS Parabrisas (hi
 # NO hay que compensar nada, y el roadworks_cursor.hlsl de este repo no lleva
 # compensacion: los dos valores son coherentes tal y como estan. Si se vuelve a
 # poner flip=1 hay que reponer tambien esa linea en el .hlsl.
+# ESTE VALOR SE HA IDO Y HA VUELTO TRES VECES (28/08 -> 29/08 -> 30/08). Antes de
+# volver a cambiarlo, leer el bloque de invariantes que hay justo debajo del
+# bucle: el flip y la compensacion del cursor van EN PAREJA y cambiar uno solo
+# deja el cursor espejado sin que nada avise. Para probar el otro valor no hace
+# falta recompilar:
+#     python fix_flip_pantalla.py --preset scania --flip on --dll <juego>\dxgi.dll
 ORIENTACION = {
     "scania":  (0, 0),   # UV estandar en la malla de este camion
     "central": (0, 0),
     "vidrio":  (0, 0),
     "celular": (0, 0),
 }
+
+# Presets cuyo render target es CUADRADO (256x256). Es el discriminante que usa
+# la compensacion del cursor dentro del .hlsl, porque el shader no recibe la
+# bandera de flip y de los cuatro presets solo el del Scania es cuadrado.
+PRESETS_CUADRADOS = {"scania"}
+
+# La linea que compensa el espejado del cursor cuando el preset va con flip=1.
+COMPENSACION_CURSOR = 'rtData.x-rtData.y'
 
 import fix_flip_pantalla as flip
 
@@ -524,10 +641,43 @@ for _clave, _preset in flip.PRESETS.items():
     _quiero = ORIENTACION[_clave]
     if _antes != _quiero:
         _dll_flip = flip.aplicar(_dll_flip, _preset, *_quiero)
+        REGISTRO_TEXT.append((_preset['offset'], 8, f"V-flip '{_clave}'", 0))
         print(f" [OK] V-flip {_antes} -> {_quiero} en '{_clave}' ({_preset['titulo']})")
     else:
+        REGISTRO_TEXT.append((_preset['offset'], 8, f"V-flip '{_clave}'", 0))
         print(f" [OK] V-flip ya correcto {_quiero} en '{_clave}' ({_preset['titulo']})")
 dll = bytearray(_dll_flip)
+
+# INVARIANTE FLIP <-> CURSOR
+# ------------------------------------------------------------------------------
+# El cursor del modo F8 no pasa por el shader del contenido: se graba directo en
+# el render target. En un preset con flip=1 sale espejado y hay que compensarlo
+# dentro de roadworks_cursor.hlsl. Las dos cosas tienen que moverse a la vez.
+#
+# Historial de este par: (0,0) el 28/08, (1,1) el 29/08 tras verlo boca abajo en
+# el juego, (0,0) otra vez el 30/08 tras volver a verlo boca abajo. Cada vuelta
+# tocaba solo uno de los dos lados. Esta comprobacion existe para que no se pueda
+# repetir: si alguien cambia ORIENTACION y se olvida del .hlsl, la compilacion se
+# para en vez de dejar el cursor invertido en silencio.
+_con_flip = {c for c, (f, _) in ORIENTACION.items() if f}
+if _con_flip - PRESETS_CUADRADOS:
+    raise SystemExit(
+        f' [ERROR] Presets no cuadrados con flip=1: {sorted(_con_flip - PRESETS_CUADRADOS)}.\n'
+        f'         La compensacion del cursor discrimina por RT cuadrado, asi que\n'
+        f'         un preset no cuadrado con flip deja el cursor espejado.')
+
+_tiene_compensacion = COMPENSACION_CURSOR in _hlsl.decode('utf-8')
+if bool(_con_flip) != _tiene_compensacion:
+    raise SystemExit(
+        f" [ERROR] V-flip y cursor descuadrados.\n"
+        f"         Presets con flip=1: {sorted(_con_flip) or 'ninguno'}\n"
+        f"         roadworks_cursor.hlsl compensa el espejado: "
+        f"{'si' if _tiene_compensacion else 'no'}\n"
+        f"         Si pones flip=1 hay que anadir al .hlsl, tras calcular p:\n"
+        f"             if (abs(rtData.x-rtData.y)<0.5) p.y = rtData.y-p.y;\n"
+        f"         y si lo quitas hay que quitarla.")
+print(f" [OK] V-flip y compensacion del cursor coherentes "
+      f"(presets con flip: {sorted(_con_flip) or 'ninguno'})")
 
 # ------------------------------------------------------------------------------
 # 9. Calidad de imagen: quitar --disable-gpu de los argumentos del WebView2
@@ -565,41 +715,71 @@ else:
           f'(se acabo la rasterizacion por software)')
 
 # ------------------------------------------------------------------------------
-# 10. Resolucion de render del WebView2 (supermuestreo sobre el render target)
+# 10. Tamano del lienzo del WebView2 (el mayor coste por frame de la multimedia)
 # ------------------------------------------------------------------------------
-# De fabrica, la DLL limitaba la dimension maxima de la textura del WebView2 a
-# 800 pixeles (0x320) mediante varias instrucciones hardcoded. En pantallas de
-# cabina o mods como Multimedia Compacta, esto hacia que la interfaz y el
-# contenido se escalaran con perdida de nitidez y aspecto borroso.
-#
-# Aqui elevamos ese limite en todas las rutinas de calculo de resolucion y
-# viewport.
-#
-# POR QUE 1920 Y NO 3840 (medido en el juego, no supuesto)
+# QUE ES ESTE NUMERO EN REALIDAD
 # ------------------------------------------------------------------------------
-# Con 3840 el propio mod deja esta linea en lucidgfx.log:
+# Durante mucho tiempo se documento como "limite maximo de la textura". No lo es.
+# Desensamblando las dos rutinas que lo usan (0x1800ce4ce y 0x1800c237e) se ve
+# que es el LADO LARGO FIJO del lienzo del WebView2, y que el lado corto sale de
+# la proporcion del render target:
+#
+#     cmp  esi, edi                 ; ancho_RT vs alto_RT
+#     jae  ...                      ; el lado mayor se fija al valor de abajo
+#     imul rax, r8, 0x320           ; el otro = otro_lado * VALOR / lado_mayor
+#     div  rcx
+#
+# O sea que NO topa nada: multiplica. El area del lienzo crece con el CUADRADO
+# de este numero, y cada pixel de ese lienzo lo paga tres veces por frame:
+# Chromium lo compone, la captura lo lee (WGC por GPU o, si WGC no esta
+# disponible, PrintWindow por CPU) y se sube a una textura D3D11.
+#
+# POR QUE 1024
+# ------------------------------------------------------------------------------
+# El destino real son los render targets de la cabina, y son diminutos:
+#
+#     preset                 RT         lienzo con 800   con 1920    con 1024
+#     Multimidia Compacta   256x256      800x800  0,64MP  3,69MP     1,05MP
+#     Multimedia Central    512x256      800x400  0,32MP  1,84MP     0,52MP
+#     el mayor de los 4    1024x512      800x400  0,32MP  1,84MP     0,52MP
+#
+# Con 800 de fabrica la pantalla mas grande salia SUB-MUESTREADA (800 para un RT
+# de 1024 de ancho = 0,78 pixeles por pixel): esa, y no otra, era la causa de que
+# se viera borrosa, y de ahi vino el parche que subio esto a 3840.
+#
+# Pero 3840 y 1920 se pasaron al otro lado. El propio mod lo deja escrito:
 #
 #     [WV2] fit main viewport 3840x1920 p/ RT 512x256
 #
-# Es decir: se calculan 7,4 MILLONES de pixeles para volcarlos en una textura de
-# 131 mil. La nitidez final la topa el destino -512x256 los fija el modelo 3D del
-# camion, no el mod-, asi que todo lo que pase de ahi se tira. Lo que si cuesta
-# es real: a 3840x1920 el WebView2 compone en cada frame una superficie de 29 MB
-# (59 MB en las pantallas cuadradas), y al cerrar el juego hay que desmontar todo
-# eso de golpe. Eso es el tiron al salir.
+# 7,4 millones de pixeles calculados para volcarlos en 131 mil. Y encima esa
+# textura acaba dibujada en el monitor a unos 200-300 px de ancho, que es lo que
+# ocupa la tablet del camion en pantalla.
 #
-# El render target mas grande de los cuatro presets es 1024x512. Con 1920 se
-# siguen calculando ~2 pixeles por cada pixel final en la pantalla mas grande y
-# ~4 en las demas, que es supermuestreo de sobra para que el texto salga limpio.
-# Y cuesta CUATRO VECES MENOS que 3840.
+# 1024 es el ancho del render target mas grande de los cuatro presets, asi que
+# es el numero mas pequeno con el que NINGUNA pantalla queda sub-muestreada:
 #
-# Si algun dia una pantalla de un mod fuese mayor que 1024x512, subir este numero
-# es lo unico que hay que tocar.
-RES_4K = 1920
-_res_bytes = struct.pack('<I', RES_4K)
+#     - la mayor (1024x512) va 1:1, sin perdida
+#     - la Central (512x256) va a x2 lineal
+#     - la Compacta (256x256) va a x4 lineal
+#
+# y cuesta 3,5 VECES MENOS que 1920 en las tres. Si algun dia un mod trae una
+# pantalla mayor de 1024 px de lado, este es el unico numero que hay que subir.
+#
+# COMO COMPROBARLO EN JUEGO
+# ------------------------------------------------------------------------------
+# Con EnableLogging=1, lucidgfx.log trae dos lineas que lo dicen todo:
+#     [WV2] fit main viewport {}x{} p/ RT {}x{}   <- el lienzo que se esta usando
+#     [MM-FPS] PrintWindow={}ms intervalo={}ms    <- SOLO sale si la captura va
+#                                                   por CPU. Si aparece, cada
+#                                                   frame paga esos ms enteros.
+# Si en su lugar sale "[MM-FPS] captura GPU-side (WGC) ATIVA", la captura no
+# toca la CPU y el coste que queda es el de componer el lienzo.
+LADO_CANVAS = 1024
+
+_res_bytes = struct.pack('<I', LADO_CANVAS)
 _res_orig = struct.pack('<I', 0x320)
 
-_patches_4k = [
+_patches_lienzo = [
     (0x1800c237e + 1, 'ancho D3D11'),
     (0x1800c2383 + 3, 'alto D3D11'),
     (0x1800c2394 + 2, 'alto D3D11'),
@@ -610,31 +790,97 @@ _patches_4k = [
     (0x1800ce50b + 3, 'alto WebView2'),
 ]
 
-for _va, _tag in _patches_4k:
+for _va, _tag in _patches_lienzo:
     _off = va_to_offset(_va)
+    REGISTRO_TEXT.append((_off, 4, f'lado del lienzo WebView2 ({_tag})', _va))
     if bytes(dll[_off:_off+4]) == _res_orig:
         dll[_off:_off+4] = _res_bytes
-        print(f' [OK] Resolucion de render: {_tag} -> {RES_4K} px')
+        print(f' [OK] Lienzo WebView2: {_tag} -> {LADO_CANVAS} px')
     elif bytes(dll[_off:_off+4]) == _res_bytes:
-        print(f' [OK] Resolucion de render: {_tag} ya en {RES_4K} px')
+        print(f' [OK] Lienzo WebView2: {_tag} ya en {LADO_CANVAS} px')
     else:
         print(f' [AVISO] Patron en {_va:#x} ({_tag}) no coincidio: {bytes(dll[_off:_off+4]).hex()}')
 
 # ------------------------------------------------------------------------------
-# 11. Cierre Limpio del Juego (Eliminación Definitiva del Crash 0xC0000005 al salir)
+# 11. Cierre del juego: se REPONE la guarda original de DllMain
 # ------------------------------------------------------------------------------
-# Al salir del juego, Windows llama a DllMain con DLL_PROCESS_DETACH. En ese momento
-# Windows ya ha terminado los demás hilos y los dispositivos D3D11 del juego
-# están en proceso de destrucción. Intentar desenganchar la ventana o llamar a
-# destructores de COM / WebView2 accede a memoria ya liberada por el juego y produce
-# el error "La instrucción en 0x... hace referencia a la memoria en 0x... La memoria no se pudo read".
+# La compilacion anterior escribia aqui un 'jmp' (EB 58) sobre el arranque de la
+# rama DLL_PROCESS_DETACH, con la idea de saltarse la limpieza y evitar el
+# 0xC0000005 al salir. Desensamblando la DLL base se ve que ese parche no podia
+# arreglar nada, porque la guarda que buscaba YA ESTABA:
 #
-# Al saltar directamente a la salida limpia de DllMain (mov eax, 1; add rsp, 0x30; pop rbx; ret),
-# el proceso amtrucks.exe se cierra al instante sin errores ni congelaciones, dejando
-# que el kernel de Windows libere todos los recursos limpiamente.
-off_detach = va_to_offset(0x18001e762)
-dll[off_detach : off_detach + 2] = bytes.fromhex('eb58')
-print(" [OK] Cierre limpio del juego configurado (DLL_PROCESS_DETACH -> salida directa sin crashes)")
+#     0x18001e762  test edx, edx          ; edx = lpReserved
+#     0x18001e764  jne  0x18001e7bc       ; proceso terminando -> saltar limpieza
+#     0x18001e766  ...  log + SetWindowLongPtrW(GWLP_WNDPROC, original)
+#     0x18001e795  ...  Config::shutdown / X::shutdown / Logger::shutdown
+#     0x18001e7bc  mov eax, 1 ; add rsp, 0x30 ; pop rbx ; ret
+#
+# Windows pasa lpReserved != NULL cuando el proceso se esta cerrando, que es
+# exactamente el caso "se cierra ATS": el 'jne' ya se tomaba y la limpieza ya se
+# saltaba. Convertirlo en 'jmp' incondicional NO cambia nada en esa ruta.
+#
+# Lo que si cambia es la OTRA ruta, la de FreeLibrary (lpReserved == NULL): con
+# el 'jmp' la DLL se descarga SIN devolver el WndProc de la ventana del juego a
+# su valor original. El puntero del WndProc sigue apuntando a codigo que acaba de
+# desaparecer del mapa de memoria, y el siguiente mensaje que reciba la ventana
+# entra por ahi: eso si es un 0xC0000005 garantizado, y ademas quedan sin cerrar
+# la configuracion y el log.
+#
+# Es el mismo patron de "saltarse destructores" que ya rompio el mod dos veces.
+# Se repone el 'test edx, edx' y la limpieza vuelve a ser correcta en las dos
+# rutas. Los WebView2 que el juego deja sueltos al morir NO se recogen desde
+# aqui -en DLL_PROCESS_DETACH ya no se puede hacer nada fiable-, los recoge
+# RecolectorWebView dentro de mmats_audio_inmersivo.exe, que vive fuera del
+# proceso del juego y puede esperar a que ATS haya desaparecido del todo.
+parchear_variantes(0x18001e762,
+                   [bytes.fromhex('85d2'), bytes.fromhex('eb58')],
+                   bytes.fromhex('85d2'),
+                   'guarda lpReserved de DLL_PROCESS_DETACH')
+print(" [OK] DllMain: guarda original de DLL_PROCESS_DETACH intacta "
+      "(sin saltos que dejen el WndProc colgado)")
+
+# ------------------------------------------------------------------------------
+# 12. Auditoria: en .text no puede haber ni un byte cambiado fuera de lo previsto
+# ------------------------------------------------------------------------------
+# Los sustos de este mod siempre han venido de escrituras en .text: un salto que
+# se come destructores, un code cave que cuelga el juego, una tabla de presets
+# reescrita a ojo. Aqui se compara la DLL base con la generada byte a byte y se
+# aborta si aparece un cambio en .text que ningun paso haya declarado.
+with open('BACKUP_MULTIMEDIAATS_SEGURIDAD/dxgi.dll', 'rb') as f:
+    _base = f.read()
+
+_permitido = set()
+for _off, _n, _etq, _va in REGISTRO_TEXT:
+    _permitido.update(range(_off, _off + _n))
+
+_secs = {s.Name.rstrip(b'\x00').decode(): (s.PointerToRawData,
+                                           s.PointerToRawData + s.SizeOfRawData)
+         for s in pe.sections}
+_ini_text, _fin_text = _secs['.text']
+
+_intrusos = [i for i in range(_ini_text, _fin_text)
+             if _base[i] != dll[i] and i not in _permitido]
+
+_por_seccion = {}
+for _nombre, (_a, _b) in _secs.items():
+    _n = sum(1 for i in range(_a, _b) if _base[i] != dll[i])
+    if _n:
+        _por_seccion[_nombre] = _n
+
+print("-" * 80)
+print(" [AUDIT] Bytes cambiados respecto a la DLL base, por seccion:")
+for _nombre, _n in sorted(_por_seccion.items()):
+    print(f"         {_nombre:<10} {_n:>8} bytes")
+print(f" [AUDIT] Sitios declarados en .text: {len(REGISTRO_TEXT)} "
+      f"({len(_permitido)} bytes cubiertos)")
+
+if _intrusos:
+    print("!" * 80)
+    print(f"ABORTADO: {len(_intrusos)} bytes de .text cambiados fuera de los sitios")
+    print("declarados. Primeros offsets:", [hex(i) for i in _intrusos[:16]])
+    print("!" * 80)
+    raise SystemExit(1)
+print(" [AUDIT] OK: .text solo cambia en los sitios declarados.")
 
 pe.close()
 del pe

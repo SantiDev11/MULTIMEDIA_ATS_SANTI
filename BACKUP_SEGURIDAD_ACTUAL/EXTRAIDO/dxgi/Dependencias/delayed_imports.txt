@@ -1,6 +1,0 @@
-DELAYED IMPORTS
-==================================================
-
-  D3DCOMPILER_47.dll
-  USER32.dll
-  IMM32.dll

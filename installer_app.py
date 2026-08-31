@@ -52,6 +52,31 @@ MENU_ARCHIVOS_EXCLUIDOS = {
     "DLL_UPDATE_REPORT.TXT",
 }
 
+# ------------------------------------------------------------------------------
+# Restos del mod original en %LOCALAPPDATA%\LucidGFX\assets
+# ------------------------------------------------------------------------------
+# dxgi.dll extrae los CINCO HTML que lleva dentro a esa carpeta y mapea ahi el
+# host virtual lucidgfx.local. Los sobrescribe, pero no borra nada, asi que
+# convive con los archivos que dejo el mod LucidGFX original: hojas de estilo,
+# scripts y traducciones de agosto que ya no usa nadie. Como la carpeta esta en
+# el perfil del usuario, sobrevive a desinstalar y reinstalar el mod.
+#
+# Eso no es solo peso muerto: mientras el overlay llevo un <link> a
+# overlay_styles.css, lo que cargaba era la hoja VIEJA de esa carpeta, pisando
+# el diseno actual del panel. El <link> ya no esta, y aqui se retiran ademas los
+# archivos para que no puedan volver a colarse.
+#
+# Se borran nombres concretos y conocidos. NUNCA se limpia por diferencia: en
+# esa misma carpeta viven los fondos personalizados que el usuario elige con
+# "Cambiar fondo" (mm_background), y esos hay que respetarlos.
+ASSETS_LEGADO = {
+    "game_main.js", "i18n.js", "navbar_inject.js", "preload.js",
+    "overlay_preload.js", "overlay_script.js", "home_script.js",
+    "home_styles.css", "overlay_styles.css",
+    "en.json", "es.json", "pt-BR.json",
+    "ANALISIS.txt", "CAMBIOS_MULTIMEDIAATS.txt", "DLL_UPDATE_REPORT.txt",
+}
+
 def get_bundle_dir():
     """Retorna el directorio donde residen los recursos empaquetados por PyInstaller o en modo desarrollo."""
     if getattr(sys, 'frozen', False):
@@ -410,6 +435,35 @@ def limpiar_menu_obsoleto(target_menu_dir, log=None):
                 break
     if quitados:
         decir(f"  [OK] {quitados} resto(s) obsoleto(s) de versiones anteriores eliminados de MENU_EXTRAIDO.")
+    return quitados
+
+
+def limpiar_assets_legado(log=None):
+    """
+    Retira de %LOCALAPPDATA%\\LucidGFX\\assets los archivos del mod original.
+
+    Ver el comentario de ASSETS_LEGADO. Solo nombres conocidos: los cinco HTML
+    que extrae la DLL y los fondos personalizados del usuario no se tocan.
+    """
+    decir = log or (lambda m, l='INFO': None)
+    base = os.environ.get("LOCALAPPDATA")
+    if not base:
+        return 0
+    carpeta = os.path.join(base, "LucidGFX", "assets")
+    if not os.path.isdir(carpeta):
+        return 0
+    quitados = 0
+    for nombre in ASSETS_LEGADO:
+        ruta = os.path.join(carpeta, nombre)
+        if os.path.isfile(ruta):
+            try:
+                os.remove(ruta)
+                quitados += 1
+            except OSError:
+                pass
+    if quitados:
+        decir(f"  [OK] {quitados} archivo(s) del mod original retirados de "
+              f"{carpeta} (ya no pisan el diseno actual).")
     return quitados
 
 
@@ -800,6 +854,7 @@ class ModInstallerEngine:
         # de desarrollo. Como el instalador nunca borraba lo que dejaba de
         # enviar, esos restos se quedaban para siempre en la carpeta del juego.
         limpiar_menu_obsoleto(target_menu_dir, self.log)
+        limpiar_assets_legado(self.log)
 
         for root, dirs, files in os.walk(sources["menu_dir"]):
             # No desplegar en la carpeta del juego lo que no forma parte del mod:

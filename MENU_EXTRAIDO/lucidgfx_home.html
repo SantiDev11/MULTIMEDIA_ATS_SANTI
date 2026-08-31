@@ -117,7 +117,9 @@ function sendAction(path){var f=document.createElement('iframe');f.style.display
 var _gameTimeStr=null,_gameTimeAt=0;
 window._lgfxSetGameTime=function(hhmm){_gameTimeStr=hhmm;_gameTimeAt=Date.now();paintTime();};
 window._lgfxClearGameTime=function(){_gameTimeStr=null;paintTime();};
-function paintTime(){var el=document.getElementById('sb-time');if(!el)return;if(_gameTimeStr&&(Date.now()-_gameTimeAt)<12000){el.textContent=_gameTimeStr;return;}var d=new Date();el.textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+// Reescribir el mismo texto recompone el lienzo igual. Se compara antes.
+var _tPint='';
+function paintTime(){var el=document.getElementById('sb-time');if(!el)return;var t;if(_gameTimeStr&&(Date.now()-_gameTimeAt)<12000){t=_gameTimeStr;}else{var d=new Date();t=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}if(t===_tPint)return;_tPint=t;el.textContent=t;}
 paintTime();setInterval(paintTime,2000);
 function go(url,name){if(PANE_MODE){showLoad();window.location.href=url;return;}pendingUrl=url;var title=document.getElementById('modal-app-name');if(title)title.textContent=name;document.getElementById('app-modal').classList.add('show');}
 function closeModal(){document.getElementById('app-modal').classList.remove('show');pendingUrl=null;}

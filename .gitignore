@@ -1,0 +1,14 @@
+# Artefactos de PyInstaller: se regeneran con build_multimedia_ats_santi.py +
+# pyinstaller y pesaban 351 MB de historial cuando estaban commiteados.
+build/
+dist/
+*.pyc
+__pycache__/
+
+# Copias que deja fix_flip_pantalla.py antes de tocar la DLL.
+*.flipbak_*
+
+# Restos de ediciones a mano.
+*.bak
+*.bak_*
+*.pre_optimizacion
